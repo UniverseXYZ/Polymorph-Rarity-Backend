@@ -9,17 +9,33 @@ import (
 	"strings"
 )
 
-func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) int {
+const (
+	NO_COLOR_MISMATCH_SCALER = 3
+	COLOR_MISMATCH_SCALER    = 1.5
+	DEGEN_SCALER             = 0.5
+	VIRGIN_SCALER            = 1.5
+	MATCHING_HANDS_SCALER    = 1.25
+	MISMATCH_PENALTY         = 0.5
+)
+
+type SetWithColors struct {
+	Name           string
+	Colors         []string
+	TraitsNumber   float64
+	NonColorTraits float64
+}
+
+func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) (string, bool, int, float64, float64) {
 	var sets []string
-	var leftHand metadata.Attribute
-	var rightHand metadata.Attribute
+	var leftHand, rightHand metadata.Attribute
 	var virginScaler float64 = 1
 
 	for _, attr := range attributes {
 		sets = append(sets, attr.Sets...)
-		if attr.TraitType == "Right Hand" {
+		switch attr.TraitType {
+		case "Right Hand":
 			rightHand = attr
-		} else if attr.TraitType == "Left Hand" {
+		case "Left Hand":
 			leftHand = attr
 		}
 	}
@@ -34,7 +50,8 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) int {
 	totalScalars := virginScaler * correctHandsScaler * noColorMismatchScaler * colorMismatchScaler * degenScaler
 	scaledRarity := int(math.Ceil(baseRarity * totalScalars))
 	log.Println("Rarity index: " + strconv.Itoa(scaledRarity))
-	return scaledRarity
+
+	return setName, hasCompletedSet, scaledRarity, matchingTraits, colorMismatches
 }
 
 func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, isVirgin bool) (float64, float64, float64, float64) {

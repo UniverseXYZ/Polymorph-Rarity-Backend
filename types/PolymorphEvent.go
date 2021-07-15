@@ -2,7 +2,8 @@ package types
 
 import "math/big"
 
-type TokenMintedEvent struct {
+type PolymorphEvent struct {
 	NewGene *big.Int
+	OldGene *big.Int
 	MorphId *big.Int
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"rarity-backend/db"
 	"rarity-backend/models"
-	"rarity-backend/types"
 	"strconv"
 
 	"github.com/gofiber/fiber"
@@ -99,14 +98,14 @@ func GetPolymorphById(c *fiber.Ctx) {
 	c.Send(json)
 }
 
-func CreateOrUpdatePolymorphEntity(event types.TokenMintedEvent, rarityScore int, setVirgin bool) (string, error) {
+func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity) (string, error) {
 	collection, err := db.GetMongoDbCollection("polymorphs-rarity", "rarity")
 	if err != nil {
 		return "", err
 	}
 	// This option will create new entity if no matching is found
 	opts := options.Update().SetUpsert(true)
-	entity := models.PolymorphEntity{TokenId: event.MorphId.String(), Gene: event.NewGene.String(), RarityScore: rarityScore, IsVirgin: setVirgin}
+	// entity := models.PolymorphEntity{TokenId: event.MorphId.String(), Gene: event.NewGene.String(), RarityScore: rarityScore, IsVirgin: setVirgin}
 	filter := bson.M{"tokenid": entity.TokenId}
 	update := bson.M{
 		"$set": entity,
