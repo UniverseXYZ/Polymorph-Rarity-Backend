@@ -111,6 +111,8 @@ func processTokenMorphedEvent(contractAbi abi.ABI, topics []common.Hash, configS
 	if oldGene != "0" {
 		processMorphAndPersist(event, configService, false)
 	}
+	// TODO:: we can check if there is a gene diff, in some cases you can morph the same gene, there is no need  to process then.
+	// TODO:: Upon TokenMorphed event -> take the new gene from the contract
 }
 
 func processMorphAndPersist(event types.TokenMintedEvent, configService *config.ConfigService, isVirgin bool) {
