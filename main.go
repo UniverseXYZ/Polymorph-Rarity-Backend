@@ -59,9 +59,9 @@ func startAPI() {
 
 func recoverAndPoll(ethClient *dlt.EthereumClient, contractAddress string, configService *config.ConfigService) {
 	// Recover immediately
-	services.ProcessBlocks(ethClient, contractAddress, configService)
+	services.ProcessBlocks(ethClient, contractAddress, configService, int64(0), int64(0))
 	// Routine one: Start polling after recovery
-	gocron.Every(15).Second().Do(services.ProcessBlocks, ethClient, contractAddress, configService)
+	gocron.Every(3).Second().Do(services.ProcessBlocks, ethClient, contractAddress, configService, int64(0), int64(0))
 	<-gocron.Start()
 }
 

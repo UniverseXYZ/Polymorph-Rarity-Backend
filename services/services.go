@@ -18,22 +18,23 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func ProcessBlocks(ethClient *dlt.EthereumClient, address string, configService *config.ConfigService) {
+func ProcessBlocks(ethClient *dlt.EthereumClient, address string, configService *config.ConfigService, startBlock int64, endBlock int64) {
 	log.Println("Processing new blocks for morph events")
-	lastProcessedBlockNumber, err := handlers.GetLastProcessedBlockNumber()
-	// If error, the recovery will start from block 0
-	if err != nil {
-		log.Println(err)
-	}
-	// TODO: Check if this really sends you the latest block or connection needs to be reset
-	lastChainBlockHeader, err := ethClient.Client.HeaderByNumber(context.Background(), nil)
 
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	var lastProcessedBlockNumber, lastChainBlockNumberInt64 int64
+	if startBlock != 0 && endBlock != 0 {
+		lastProcessedBlockNumber = startBlock
+		lastChainBlockNumberInt64 = endBlock
+	} else {
+		lastProcessedBlockNumber, _ = handlers.GetLastProcessedBlockNumber()
+		lastChainBlockHeader, err := ethClient.Client.HeaderByNumber(context.Background(), nil)
+		lastChainBlockNumberInt64 = int64(lastChainBlockHeader.Number.Uint64())
 
-	lastChainBlockNumberInt64 := int64(lastChainBlockHeader.Number.Uint64())
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	}
 
 	ethLogs, err := ethClient.Client.FilterLogs(context.Background(), ethereum.FilterQuery{
 		FromBlock: big.NewInt(lastProcessedBlockNumber),
@@ -42,47 +43,48 @@ func ProcessBlocks(ethClient *dlt.EthereumClient, address string, configService 
 	})
 
 	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	contractAbi, err := abi.JSON(strings.NewReader(string(store.StoreABI)))
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	tokenMintedSignature := "0x8c0bdd7bca83c4e0c810cbecf44bc544a9dc0b9f265664e31ce0ce85f07a052b"
-	tokenMorphedSignature := "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-	//	transferEventSignature := "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-	// 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d
-	// 0x5f7666687319b40936f33c188908d86aea154abd3f4127b4fa0a3f04f303c7da -- maybe is TokenMorphedEvent signature
-
-	// eventSignatures := make(map[string]int)
-	// for _, vLog := range ethLogs {
-	// 	eventSig := vLog.Topics[0].String()
-	// 	eventSignatures[eventSig]++
-	// }
-
-	for _, vLog := range ethLogs {
-		eventSig := vLog.Topics[0].String()
-		switch eventSig {
-		case tokenMintedSignature:
-			processTokenMintedEvent(contractAbi, vLog.Data, vLog.Topics, configService)
-			//TODO: Add this as deferred somehow in order to save the last processed block number if app panicks
-		case tokenMorphedSignature:
-			processTokenMorphedEvent(contractAbi, vLog.Topics, configService)
-			//TODO: Add this as deferred somehow in order to save the last processed block number if app panicks
-		}
-
-		res, err := handlers.CreateOrUpdateLastProcessedBlock(vLog.BlockNumber)
+		log.Println(err)
+		middle := (lastProcessedBlockNumber + lastChainBlockNumberInt64) / 2
+		ProcessBlocks(ethClient, address, configService, lastProcessedBlockNumber, middle)
+		ProcessBlocks(ethClient, address, configService, middle+1, lastChainBlockNumberInt64)
+	} else {
+		contractAbi, err := abi.JSON(strings.NewReader(string(store.StoreABI)))
 		if err != nil {
-			log.Println(err)
-		} else {
-			log.Println(res)
+			log.Fatal(err)
+			return
+		}
+
+		tokenMintedSignature := "0x8c0bdd7bca83c4e0c810cbecf44bc544a9dc0b9f265664e31ce0ce85f07a052b"
+		tokenMorphedSignature := "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+		//	transferEventSignature := "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+		// 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d
+		// 0x5f7666687319b40936f33c188908d86aea154abd3f4127b4fa0a3f04f303c7da -- maybe is TokenMorphedEvent signature
+
+		// eventSignatures := make(map[string]int)
+		// for _, vLog := range ethLogs {
+		// 	eventSig := vLog.Topics[0].String()
+		// 	eventSignatures[eventSig]++
+		// }
+
+		for _, vLog := range ethLogs {
+			eventSig := vLog.Topics[0].String()
+			switch eventSig {
+			case tokenMintedSignature:
+				processTokenMintedEvent(contractAbi, vLog.Data, vLog.Topics, configService)
+				//TODO: Add this as deferred somehow in order to save the last processed block number if app panicks
+			case tokenMorphedSignature:
+				processTokenMorphedEvent(contractAbi, vLog.Topics, configService)
+				//TODO: Add this as deferred somehow in order to save the last processed block number if app panicks
+			}
+
+			res, err := handlers.CreateOrUpdateLastProcessedBlock(vLog.BlockNumber)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Println(res)
+			}
 		}
 	}
-
 }
 
 func processTokenMintedEvent(contractAbi abi.ABI, data []byte, topics []common.Hash, configService *config.ConfigService) {
