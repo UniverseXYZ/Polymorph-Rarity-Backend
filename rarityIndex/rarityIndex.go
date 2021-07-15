@@ -4,25 +4,10 @@ import (
 	"log"
 	"math"
 	"rarity-backend/metadata"
+	"rarity-backend/config"
 	"strconv"
 	"strings"
 )
-
-const (
-	NO_COLOR_MISMATCH_SCALER = 3
-	COLOR_MISMATCH_SCALER    = 1.5
-	DEGEN_SCALER             = 0.5
-	VIRGIN_SCALER            = 1.5
-	MATCHING_HANDS_SCALER    = 1.25
-	MISMATCH_PENALTY         = 0.5
-)
-
-type SetWithColors struct {
-	Name           string
-	Colors         []string
-	TraitsNumber   float64
-	NonColorTraits float64
-}
 
 func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) int {
 	var sets []string
@@ -44,7 +29,7 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) int {
 	correctHandsScaler := getFullSetHandsScaler(hasCompletedSet, setName, leftHand, rightHand)
 	noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler := getScalers(hasCompletedSet, setName, colorMismatches, isVirgin)
 
-	baseRarity := math.Pow(2, (matchingTraits - (MISMATCH_PENALTY * colorMismatches)))
+	baseRarity := math.Pow(2, (matchingTraits - (config.MISMATCH_PENALTY * colorMismatches)))
 	// TODO: Ask ryan about scalers sum/multiply
 	totalScalars := virginScaler * correctHandsScaler * noColorMismatchScaler * colorMismatchScaler * degenScaler
 	scaledRarity := int(math.Ceil(baseRarity * totalScalars))
@@ -56,28 +41,28 @@ func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, i
 	var noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler float64 = 1, 1, 1, 1
 
 	if hasCompletedSet && colorMismatches == 0 {
-		noColorMismatchScaler = NO_COLOR_MISMATCH_SCALER
+		noColorMismatchScaler = config.NO_COLOR_MISMATCH_SCALER
 	} else if hasCompletedSet && colorMismatches != 0 {
-		colorMismatchScaler = COLOR_MISMATCH_SCALER
+		colorMismatchScaler = config.COLOR_MISMATCH_SCALER
 	}
 
 	if setName == "Party Degen" {
-		degenScaler = DEGEN_SCALER
+		degenScaler = config.DEGEN_SCALER
 	}
 
 	if isVirgin {
-		virginScaler = VIRGIN_SCALER
+		virginScaler = config.VIRGIN_SCALER
 	}
 
 	return noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler
 }
 
 func getColorMismatches(attributes []metadata.Attribute, longestSet string) float64 {
-	footbalSetWithColors := SetWithColors{Name: "Football Star", Colors: []string{"Red", "White", "Yellow"}}
-	spartanSetWithColors := SetWithColors{Name: "Spartan", Colors: []string{"Platinum", "Silver", "Gold", "Brown"}}
-	knightSetWithColors := SetWithColors{Name: "Knight", Colors: []string{"Silver", "Golden"}}
+	footbalSetWithColors := config.SetWithColors{Name: "Football Star", Colors: []string{"Red", "White", "Yellow"}}
+	spartanSetWithColors := config.SetWithColors{Name: "Spartan", Colors: []string{"Platinum", "Silver", "Gold", "Brown"}}
+	knightSetWithColors := config.SetWithColors{Name: "Knight", Colors: []string{"Silver", "Golden"}}
 
-	var correctSet SetWithColors
+	var correctSet config.SetWithColors
 	if strings.Contains(longestSet, footbalSetWithColors.Name) {
 		correctSet = footbalSetWithColors
 	} else if strings.Contains(longestSet, spartanSetWithColors.Name) {
@@ -118,49 +103,15 @@ func getFullSetHandsScaler(hasCompletedSet bool, completedSetName string,
 		return 1
 	}
 
-	handsMap := map[string][]string{
-		"Amish":               {"Amish Pitch Fork"},
-		"Astronaut":           {"Naked"},
-		"Ninja":               {"Katana", "Bow"},
-		"Clown":               {"Naked"},
-		"Chemical":            {"Naked"},
-		"Samurai":             {"Katana", "Bow"},
-		"Rainbow":             {"Naked"},
-		"Marine":              {"Grenade", "Big Gun", "Black Gun"},
-		"Zombie Rags":         {"Naked"},
-		"Hockey":              {"Hockey Stick"},
-		"Sushi Chef":          {"Sushi Knife"},
-		"Taekwondo":           {"Naked"},
-		"Tennis":              {"Tennis Racket"},
-		"Old Football Star":   {"American Football"},
-		"Young Football Star": {"American Football"},
-		"Striped Soccer":      {"Naked"},
-		"Spartan":             {"Silver Spartan Sword", "Golden Spartan Sword", "Platinum Spartan Sword", "Shield", "Bow & Arrow"},
-		"Basketball":          {"Basketball"},
-		"Knight":              {"Sword", "Shield", "Bow & Arrow"},
-		"Tuxedo":              {"Big Gun"},
-		"Plaid Suit":          {"Naked"},
-		"Golden Suit":         {"Golden Gun"},
-		"Black Suit":          {"Black Gun"},
-		"Brown Suit":          {"Naked"},
-		"Grey Suit":           {"Naked"},
-		"Golf":                {"Golf Club"},
-		"Soccer Argentina":    {"Naked"},
-		"Soccer Brazil":       {"Naked"},
-		"Naked":               {"Naked"},
-		"Stoner":              {"Bong"},
-		"Party Degen":         {"Banana", "Bong", "Beer", "Blue Degen Sword", "Double Degen SwordBlue", "Double Degen SwordRed", "Double Degen SwordYellow", "Green Degen Sword", "Purple Degen Sword", "Red Degen Sword"},
-	}
-
 	var matchingHandsCount int
-	for _, curr := range handsMap[completedSetName] {
+	for _, curr := range config.HandsMap[completedSetName] {
 		if curr == leftHandAttr.Value || curr == rightHandAttr.Value {
 			matchingHandsCount++
 		}
 	}
 	// Here we can easily add another if statement if we implement different scalars for one/two matching hands
 	if matchingHandsCount != 0 {
-		return MATCHING_HANDS_SCALER
+		return config.MATCHING_HANDS_SCALER
 	}
 	return 1
 }
@@ -172,42 +123,9 @@ func calculateCompleteSets(sets []string) (bool, string, float64) {
 
 	setMap := make(map[string]int)
 
-	combosMap := map[string]int{
-		"Amish":               5,
-		"Astronaut":           4,
-		"Ninja":               6,
-		"Clown":               4,
-		"Chemical":            4,
-		"Samurai":             5,
-		"Rainbow":             3,
-		"Marine":              6,
-		"Zombie Rags":         2,
-		"Hockey":              5,
-		"Sushi Chef":          5,
-		"Taekwondo":           2,
-		"Tennis":              5,
-		"Striped Soccer":      3,
-		"Basketball":          4,
-		"Tuxedo":              4,
-		"Old Football Star":   5,
-		"Young Football Star": 5,
-		"Spartan":             6,
-		"Knight":              6,
-		"Golden Suit":         4,
-		"Plaid Suit":          5,
-		"Black Suit":          6,
-		"Brown Suit":          5,
-		"Grey Suit":           5,
-		"Golf":                5,
-		"Soccer Argentina":    3,
-		"Soccer Brazil":       3,
-		"Naked":               7,
-		"Stoner":              3,
-		"Party Degen":         7,
-	}
 	for _, set := range sets {
 		setMap[set]++
-		if setMap[set] == combosMap[set] {
+		if setMap[set] == config.CombosMap[set] {
 			hasCompletedSet = true
 		}
 	}

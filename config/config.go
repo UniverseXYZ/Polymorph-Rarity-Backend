@@ -30,6 +30,13 @@ type ConfigService struct {
 	WeaponLeft  []AttributeSet `json:"weaponleft"`
 }
 
+type SetWithColors struct {
+	Name           string
+	Colors         []string
+	TraitsNumber   float64
+	NonColorTraits float64
+}
+
 // type ComboConfigService struct {
 // 	AmishComboCount             int `json:"amishcombocount"`
 // 	AstronautComboCount         int `json:"astronautcombocount"`
