@@ -9,22 +9,6 @@ import (
 	"strings"
 )
 
-const (
-	NO_COLOR_MISMATCH_SCALER = 3
-	COLOR_MISMATCH_SCALER    = 1.5
-	DEGEN_SCALER             = 0.5
-	VIRGIN_SCALER            = 1.5
-	MATCHING_HANDS_SCALER    = 1.25
-	MISMATCH_PENALTY         = 0.5
-)
-
-type SetWithColors struct {
-	Name           string
-	Colors         []string
-	TraitsNumber   float64
-	NonColorTraits float64
-}
-
 func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) (string, bool, int, float64, float64) {
 	var sets []string
 	var leftHand, rightHand metadata.Attribute
