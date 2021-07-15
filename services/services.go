@@ -8,6 +8,7 @@ import (
 	"rarity-backend/dlt"
 	"rarity-backend/handlers"
 	"rarity-backend/metadata"
+	"rarity-backend/models"
 	"rarity-backend/rarityIndex"
 	"rarity-backend/store"
 	"rarity-backend/types"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -65,66 +67,129 @@ func ProcessBlocks(ethClient *dlt.EthereumClient, address string, configService 
 		// 	eventSig := vLog.Topics[0].String()
 		// 	eventSignatures[eventSig]++
 		// }
-
+		instance, err := store.NewStore(common.HexToAddress(address), ethClient.Client)
+		if err != nil {
+			log.Fatalln(err)
+		}
 		for _, vLog := range ethLogs {
 			eventSig := vLog.Topics[0].String()
 			switch eventSig {
 			case tokenMintedSignature:
 				processTokenMintedEvent(contractAbi, vLog.Data, vLog.Topics, configService)
-				//TODO: Add this as deferred somehow in order to save the last processed block number if app panicks
 			case tokenMorphedSignature:
-				processTokenMorphedEvent(contractAbi, vLog.Topics, configService)
-				//TODO: Add this as deferred somehow in order to save the last processed block number if app panicks
+				processTokenMorphedEvent(contractAbi, vLog.Topics, configService, instance)
 			}
 
-			res, err := handlers.CreateOrUpdateLastProcessedBlock(vLog.BlockNumber)
-			if err != nil {
-				log.Println(err)
-			} else {
-				log.Println(res)
-			}
+			//TODO: Add this as deferred somehow in order to save the last processed block number if app panicks
+			persistProcessedBlock(vLog.BlockNumber)
 		}
 	}
 }
 
-func processTokenMintedEvent(contractAbi abi.ABI, data []byte, topics []common.Hash, configService *config.ConfigService) {
-	var tokenMintedEvent types.TokenMintedEvent
-
-	err := contractAbi.UnpackIntoInterface(&tokenMintedEvent, "TokenMinted", data)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	tokenMintedEvent.MorphId = topics[1].Big()
-	if tokenMintedEvent.NewGene.String() == "0" {
-		log.Println("Empty gene mint event for morph id: " + tokenMintedEvent.MorphId.String())
-		return
-	}
-	processMorphAndPersist(tokenMintedEvent, configService, true)
-}
-
-func processTokenMorphedEvent(contractAbi abi.ABI, topics []common.Hash, configService *config.ConfigService) {
-	oldGene := topics[1].Big().String()
-	event := types.TokenMintedEvent{NewGene: topics[2].Big(), MorphId: topics[3].Big()}
-
-	// Morph event is emited after mint event so no need to write to db the same info
-	if oldGene != "0" {
-		processMorphAndPersist(event, configService, false)
-	}
-	// TODO:: we can check if there is a gene diff, in some cases you can morph the same gene, there is no need  to process then.
-	// TODO:: Upon TokenMorphed event -> take the new gene from the contract
-}
-
-func processMorphAndPersist(event types.TokenMintedEvent, configService *config.ConfigService, isVirgin bool) {
-	g := metadata.Genome(event.NewGene.String())
-	metadataJson := (&g).Metadata(event.MorphId.String(), configService)
-
-	rarityScore := rarityIndex.CalulateRarityScore(metadataJson.Attributes, isVirgin)
-
-	res, err := handlers.CreateOrUpdatePolymorphEntity(event, rarityScore, isVirgin)
+func persistProcessedBlock(blockNumber uint64) {
+	res, err := handlers.CreateOrUpdateLastProcessedBlock(blockNumber)
 	if err != nil {
 		log.Println(err)
 	} else {
 		log.Println(res)
 	}
+
+}
+
+func processTokenMintedEvent(contractAbi abi.ABI, data []byte, topics []common.Hash, configService *config.ConfigService) {
+	var morphEvent types.PolymorphEvent
+
+	err := contractAbi.UnpackIntoInterface(&morphEvent, "TokenMinted", data)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	morphEvent.MorphId = topics[1].Big()
+	morphEvent.OldGene = big.NewInt(0)
+	if morphEvent.NewGene.String() == "0" {
+		log.Println("Empty gene mint event for morph id: " + morphEvent.MorphId.String())
+		return
+	}
+	processMorphAndPersist(morphEvent, configService, true)
+}
+
+func processTokenMorphedEvent(contractAbi abi.ABI, topics []common.Hash, configService *config.ConfigService, contract *store.Store) {
+	morphEvent := types.PolymorphEvent{
+		OldGene: topics[1].Big(),
+		NewGene: topics[2].Big(),
+		MorphId: topics[3].Big(),
+	}
+	//TODO: Test this and change new gene
+	result, err := contract.GeneOf(&bind.CallOpts{}, morphEvent.MorphId)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	morphEvent.NewGene = result
+	// Morph event is emited after mint event so no need to write to db the same info
+	if morphEvent.OldGene.String() != "0" {
+		processMorphAndPersist(morphEvent, configService, false)
+	}
+	// TODO:: we can check if there is a gene diff, in some cases you can morph the same gene, there is no need  to process then.
+	// TODO:: Upon TokenMorphed event -> take the new gene from the contract
+}
+
+func processMorphAndPersist(event types.PolymorphEvent, configService *config.ConfigService, isVirgin bool) {
+	g := metadata.Genome(event.NewGene.String())
+	metadataJson := (&g).Metadata(event.MorphId.String(), configService)
+
+	setName, hasCompletedSet, scaledRarity, matchingTraits, colorMismatches := rarityIndex.CalulateRarityScore(metadataJson.Attributes, isVirgin)
+	morphEntity := createMorphEntity(event, metadataJson.Attributes, setName, hasCompletedSet, isVirgin, scaledRarity, matchingTraits, colorMismatches)
+	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity)
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Println(res)
+	}
+}
+
+func createMorphEntity(event types.PolymorphEvent, attributes []metadata.Attribute, setName string, hasCompletedSet bool, isVirgin bool, scaledRarity int, matchingTraits float64, colorMismatches float64) models.PolymorphEntity {
+	var background, leftHand, rightHand, head, eye, torso, pants, feet, character metadata.Attribute
+
+	for _, attr := range attributes {
+		switch attr.TraitType {
+		case "Background":
+			background = attr
+		case "Character":
+			character = attr
+		case "Right Hand":
+			rightHand = attr
+		case "Left Hand":
+			leftHand = attr
+		case "Footwear":
+			feet = attr
+		case "Pants":
+			pants = attr
+		case "Torso":
+			torso = attr
+		case "Eyewear":
+			eye = attr
+		case "Headwear":
+			head = attr
+		}
+	}
+
+	morphEntity := models.PolymorphEntity{
+		TokenId:         event.MorphId.String(),
+		OldGene:         event.OldGene.String(),
+		NewGene:         event.NewGene.String(),
+		Headwear:        head.Value,
+		Eyewear:         eye.Value,
+		Torso:           torso.Value,
+		Pants:           pants.Value,
+		Footwear:        feet.Value,
+		LeftHand:        leftHand.Value,
+		RightHand:       rightHand.Value,
+		Character:       character.Value,
+		Background:      background.Value,
+		RarityScore:     scaledRarity,
+		IsVirgin:        isVirgin,
+		MatchingTraits:  int(matchingTraits),
+		ColorMismatches: int(colorMismatches),
+	}
+	return morphEntity
 }
