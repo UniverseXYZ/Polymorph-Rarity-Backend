@@ -9,13 +9,11 @@ import (
 	"strings"
 )
 
-func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) (string, bool, int, float64, float64) {
-	var sets []string
+func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) (string, bool, int, float64, []string, float64) {
 	var leftHand, rightHand metadata.Attribute
 	var virginScaler float64 = 1
 
 	for _, attr := range attributes {
-		sets = append(sets, attr.Sets...)
 		switch attr.TraitType {
 		case "Right Hand":
 			rightHand = attr
@@ -24,18 +22,18 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) (string
 		}
 	}
 
-	hasCompletedSet, setName, matchingTraits := calculateCompleteSets(sets)
+	hasCompletedSet, setName, matchingTraitsCount, setMatchingTraits := calculateCompleteSets(attributes)
 	colorMismatches := getColorMismatches(attributes, setName)
 	correctHandsScaler := getFullSetHandsScaler(hasCompletedSet, setName, leftHand, rightHand)
 	noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler := getScalers(hasCompletedSet, setName, colorMismatches, isVirgin)
 
-	baseRarity := math.Pow(2, (matchingTraits - (config.MISMATCH_PENALTY * colorMismatches)))
+	baseRarity := math.Pow(2, (matchingTraitsCount - (config.MISMATCH_PENALTY * colorMismatches)))
 	// TODO: Ask ryan about scalers sum/multiply
 	totalScalars := virginScaler * correctHandsScaler * noColorMismatchScaler * colorMismatchScaler * degenScaler
 	scaledRarity := int(math.Ceil(baseRarity * totalScalars))
 	log.Println("Rarity index: " + strconv.Itoa(scaledRarity))
 
-	return setName, hasCompletedSet, scaledRarity, matchingTraits, colorMismatches
+	return setName, hasCompletedSet, scaledRarity, matchingTraitsCount, setMatchingTraits, colorMismatches
 }
 
 func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, isVirgin bool) (float64, float64, float64, float64) {
@@ -117,25 +115,35 @@ func getFullSetHandsScaler(hasCompletedSet bool, completedSetName string,
 	return 1
 }
 
-func calculateCompleteSets(sets []string) (bool, string, float64) {
+func calculateCompleteSets(attributes []metadata.Attribute) (bool, string, float64, []string) {
 	var hasCompletedSet bool
 	var longestSet int
 	var longestSetName string
 
 	setMap := make(map[string]int)
+	setTraitsMap := make(map[string][]string)
 
-	for _, set := range sets {
-		setMap[set]++
-		if setMap[set] == config.CombosMap[set] {
-			hasCompletedSet = true
+	for _, attr := range attributes {
+		for _, set := range attr.Sets {
+			setMap[set]++
+			setTraitsMap[set] = append(setTraitsMap[set], attr.TraitType)
+			if setMap[set] == config.CombosMap[set] {
+				hasCompletedSet = true
+				longestSetName = set
+				longestSet = setMap[set]
+			}
 		}
 	}
 
-	for k, v := range setMap {
-		if longestSet < v {
-			longestSetName, longestSet = k, v
+	if longestSet == 0 {
+		for k, v := range setMap {
+			if longestSet < v {
+				longestSetName, longestSet = k, v
+			}
 		}
 	}
 
-	return hasCompletedSet, longestSetName, float64(longestSet)
+	setMatchingTraits := setTraitsMap[longestSetName]
+
+	return hasCompletedSet, longestSetName, float64(longestSet), setMatchingTraits
 }

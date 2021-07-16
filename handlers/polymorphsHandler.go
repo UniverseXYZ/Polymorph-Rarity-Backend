@@ -3,20 +3,30 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
+	"rarity-backend/config"
 	"rarity-backend/db"
 	"rarity-backend/models"
 	"strconv"
+	"sync"
 
 	"github.com/gofiber/fiber"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const RESULTS_LIMIT int64 = 1000
+const RESULTS_LIMIT int64 = 10000
+
+type UpdateModelMutex struct {
+	mutex      sync.Mutex
+	operations []mongo.WriteModel
+}
 
 // TODO: Create connection to db here and pass it to handlers
 func GetPolymorphs(c *fiber.Ctx) {
-	collection, err := db.GetMongoDbCollection("polymorphs-rarity", "rarity")
+	collection, err := db.GetMongoDbCollection(config.POLYMORPH_DB, config.RARITY_COLLECTION)
 	if err != nil {
 		c.Status(500).Send(err)
 		return
@@ -71,11 +81,10 @@ func GetPolymorphs(c *fiber.Ctx) {
 
 	json, _ := json.Marshal(results)
 	c.Send(json)
-
 }
 
 func GetPolymorphById(c *fiber.Ctx) {
-	collection, err := db.GetMongoDbCollection("polymorphs-rarity", "rarity")
+	collection, err := db.GetMongoDbCollection(config.POLYMORPH_DB, config.RARITY_COLLECTION)
 	if err != nil {
 		c.Status(500).Send(err)
 		return
@@ -102,13 +111,12 @@ func GetPolymorphById(c *fiber.Ctx) {
 }
 
 func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity) (string, error) {
-	collection, err := db.GetMongoDbCollection("polymorphs-rarity", "rarity")
+	collection, err := db.GetMongoDbCollection(config.POLYMORPH_DB, config.RARITY_COLLECTION)
 	if err != nil {
 		return "", err
 	}
 	// This option will create new entity if no matching is found
 	opts := options.Update().SetUpsert(true)
-	// entity := models.PolymorphEntity{TokenId: event.MorphId.String(), Gene: event.NewGene.String(), RarityScore: rarityScore, IsVirgin: setVirgin}
 	filter := bson.M{"tokenid": entity.TokenId}
 	update := bson.M{
 		"$set": entity,
@@ -125,4 +133,39 @@ func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity) (string, error
 	} else {
 		return "Didn't do shit in polymorph db (probably score is the same): " + entity.TokenId, nil
 	}
+}
+
+func CreateOrUpdatePolymorphEntities(entities []models.PolymorphEntity) error {
+	collection, err := db.GetMongoDbCollection(config.POLYMORPH_DB, config.RARITY_COLLECTION)
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+	updateOperations := UpdateModelMutex{}
+	for _, ent := range entities {
+		wg.Add(1)
+		go createWriteOperations(ent, &updateOperations, &wg)
+	}
+	wg.Wait()
+	bulkOption := options.BulkWriteOptions{}
+
+	res, err := collection.BulkWrite(context.Background(), updateOperations.operations, &bulkOption)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Updated %v entities' rank in polymorph db", res.ModifiedCount)
+	return nil
+}
+
+func createWriteOperations(entity models.PolymorphEntity, mutex *UpdateModelMutex, wg *sync.WaitGroup) {
+	operation := mongo.NewUpdateOneModel()
+	mutex.mutex.Lock()
+	operation.SetFilter(bson.M{"tokenid": entity.TokenId})
+	operation.SetUpdate(bson.M{"$set": bson.M{"rank": entity.Rank}})
+	mutex.operations = append(mutex.operations, operation)
+	wg.Done()
+	mutex.mutex.Unlock()
+
 }

@@ -1,11 +1,11 @@
 package config
 
 var NO_COLOR_MISMATCH_SCALER float64 = 3
-var COLOR_MISMATCH_SCALER    float64 = 1.5
-var DEGEN_SCALER             float64 = 0.5
-var VIRGIN_SCALER            float64 = 1.5
-var MATCHING_HANDS_SCALER    float64 = 1.25
-var MISMATCH_PENALTY         float64 = 0.5
+var COLOR_MISMATCH_SCALER float64 = 1.5
+var DEGEN_SCALER float64 = 0.5
+var VIRGIN_SCALER float64 = 1.5
+var MATCHING_HANDS_SCALER float64 = 1.25
+var MISMATCH_PENALTY float64 = 0.5
 
 var HandsMap = map[string][]string{
 	"Amish":               {"Amish Pitch Fork"},

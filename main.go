@@ -3,12 +3,16 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"rarity-backend/config"
 	"rarity-backend/dlt"
 	"rarity-backend/handlers"
 	"rarity-backend/services"
+	"rarity-backend/store"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber"
 	"github.com/jasonlvhit/gocron"
 	"github.com/joho/godotenv"
@@ -29,7 +33,7 @@ func connectToEthereum() *dlt.EthereumClient {
 	return client
 }
 
-func initResources() (*dlt.EthereumClient, string, *config.ConfigService) {
+func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *config.ConfigService) {
 	// Load env variables
 	err := godotenv.Load()
 	if err != nil {
@@ -44,9 +48,19 @@ func initResources() (*dlt.EthereumClient, string, *config.ConfigService) {
 		log.Fatal("Missing contract address")
 	}
 
+	contractAbi, err := abi.JSON(strings.NewReader(string(store.StoreABI)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	instance, err := store.NewStore(common.HexToAddress(contractAddress), ethClient.Client)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	configService := config.NewConfigService("./config.json")
 
-	return ethClient, contractAddress, configService
+	return ethClient, contractAbi, instance, contractAddress, configService
 }
 
 func startAPI() {
@@ -57,17 +71,17 @@ func startAPI() {
 	log.Fatal(app.Listen(8000))
 }
 
-func recoverAndPoll(ethClient *dlt.EthereumClient, contractAddress string, configService *config.ConfigService) {
+func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *config.ConfigService) {
 	// Recover immediately
-	services.ProcessBlocks(ethClient, contractAddress, configService, int64(0), int64(0))
+	services.ProcessBlocks(ethClient, contractAbi, store, contractAddress, configService, int64(0), int64(0))
 	// Routine one: Start polling after recovery
-	gocron.Every(15).Second().Do(services.ProcessBlocks, ethClient, contractAddress, configService, int64(0), int64(0))
+	gocron.Every(15).Second().Do(services.ProcessBlocks, ethClient, contractAbi, store, contractAddress, configService, int64(0), int64(0))
 	<-gocron.Start()
 }
 
 func main() {
-	ethClient, contractAddress, configService := initResources()
-	go recoverAndPoll(ethClient, contractAddress, configService)
+	ethClient, contractAbi, instance, contractAddress, configService := initResources()
+	go recoverAndPoll(ethClient, contractAbi, instance, contractAddress, configService)
 	startAPI()
 }
 
@@ -314,5 +328,82 @@ func main() {
 // 	},
 // }
 
-// rarityIndex.CalulateRarityScore(degenSet)
+// mismatchedSpartanSet := []metadata.Attribute{
+// 	{
+// 		TraitType: "Eyewear",
+// 		Value:     "No Eyewear",
+// 		Sets:      []string{"Naked"},
+// 	},
+// 	{
+// 		TraitType: "Footwear",
+// 		Value:     "Platinum Spartan Sandals",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Headwear",
+// 		Value:     "Golden Spartan Helmet",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Torso",
+// 		Value:     "Silver Spartan Armor",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Pants",
+// 		Value:     "Spartan Pants",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Left Hand",
+// 		Value:     "Golden Spartan Sword",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Right Hand",
+// 		Value:     "Bow & Arrow",
+// 		Sets:      []string{"Ninja", "Samurai", "Spartan", "Knight"},
+// 	},
+// }
+
+// 	// ID: 9793
+// 	degenSet := []metadata.Attribute{
+// 		{
+// 			TraitType: "Eyewear",
+// 			Value:     "Bar Shades",
+// 			Sets:      []string{"Party Degen"},
+// 		},
+// 		{
+// 			TraitType: "Footwear",
+// 			Value:     "Sneakers",
+// 			Sets:      []string{"Party Degen"},
+// 		},
+// 		{
+// 			TraitType: "Headwear",
+// 			Value:     "Copter Hat",
+// 			Sets:      []string{"Party Degen"},
+// 		},
+// 		{
+// 			TraitType: "Torso",
+// 			Value:     "Red Footbal Jersey",
+// 			Sets:      []string{"Young Football Star"},
+// 		},
+// 		{
+// 			TraitType: "Pants",
+// 			Value:     "Gray Jeans",
+// 			Sets:      []string{"Party Degen"},
+// 		},
+// 		{
+// 			TraitType: "Left Hand",
+// 			Value:     "Blue Degen Sword",
+// 			Sets:      []string{"Party Degen"},
+// 		},
+// 		{
+// 			TraitType: "Right Hand",
+// 			Value:     "Bong",
+// 			Sets:      []string{"Party Degen"},
+// 		},
+// 	}
+
+// 	rarityIndex.CalulateRarityScore(degenSet, false)
 // }
