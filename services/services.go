@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func ProcessBlocks(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *config.ConfigService, startBlock int64, endBlock int64) {
+func ProcessBlocks(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *config.ConfigService, polymorphDBName string, rarityCollectionName string, blocksCollectionName string, startBlock int64, endBlock int64) {
 	log.Println("Processing new blocks for morph events")
 
 	var lastProcessedBlockNumber, lastChainBlockNumberInt64 int64
@@ -27,7 +27,7 @@ func ProcessBlocks(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 		lastProcessedBlockNumber = startBlock
 		lastChainBlockNumberInt64 = endBlock
 	} else {
-		lastProcessedBlockNumber, _ = handlers.GetLastProcessedBlockNumber()
+		lastProcessedBlockNumber, _ = handlers.GetLastProcessedBlockNumber(polymorphDBName, blocksCollectionName)
 		lastChainBlockHeader, err := ethClient.Client.HeaderByNumber(context.Background(), nil)
 		lastChainBlockNumberInt64 = int64(lastChainBlockHeader.Number.Uint64())
 
@@ -46,8 +46,8 @@ func ProcessBlocks(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 	if err != nil {
 		log.Println(err)
 		middle := (lastProcessedBlockNumber + lastChainBlockNumberInt64) / 2
-		ProcessBlocks(ethClient, contractAbi, instance, address, configService, lastProcessedBlockNumber, middle)
-		ProcessBlocks(ethClient, contractAbi, instance, address, configService, middle+1, lastChainBlockNumberInt64)
+		ProcessBlocks(ethClient, contractAbi, instance, address, configService, polymorphDBName, rarityCollectionName, blocksCollectionName, lastProcessedBlockNumber, middle)
+		ProcessBlocks(ethClient, contractAbi, instance, address, configService, polymorphDBName, rarityCollectionName, blocksCollectionName, middle+1, lastChainBlockNumberInt64)
 	} else {
 
 		tokenMintedSignature := "0x8c0bdd7bca83c4e0c810cbecf44bc544a9dc0b9f265664e31ce0ce85f07a052b"
@@ -57,18 +57,18 @@ func ProcessBlocks(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 			eventSig := vLog.Topics[0].String()
 			switch eventSig {
 			case tokenMintedSignature:
-				processTokenMintedEvent(contractAbi, vLog.Data, vLog.Topics, configService)
+				processTokenMintedEvent(contractAbi, vLog.Data, vLog.Topics, configService, polymorphDBName, rarityCollectionName)
 			case tokenMorphedSignature:
-				processTokenMorphedEvent(vLog.Topics, configService, instance)
+				processTokenMorphedEvent(vLog.Topics, configService, instance, polymorphDBName, rarityCollectionName)
 			}
 			//TODO: Add this as deferred somehow in order to save the last processed block number if app panicks
-			persistProcessedBlock(vLog.BlockNumber)
+			persistProcessedBlock(vLog.BlockNumber, polymorphDBName, blocksCollectionName)
 		}
 	}
 }
 
-func persistProcessedBlock(blockNumber uint64) {
-	res, err := handlers.CreateOrUpdateLastProcessedBlock(blockNumber)
+func persistProcessedBlock(blockNumber uint64, polymorphDBName string, blocksCollectionName string) {
+	res, err := handlers.CreateOrUpdateLastProcessedBlock(blockNumber, polymorphDBName, blocksCollectionName)
 	if err != nil {
 		log.Println(err)
 	} else {
@@ -77,7 +77,7 @@ func persistProcessedBlock(blockNumber uint64) {
 
 }
 
-func processTokenMintedEvent(contractAbi abi.ABI, data []byte, topics []common.Hash, configService *config.ConfigService) {
+func processTokenMintedEvent(contractAbi abi.ABI, data []byte, topics []common.Hash, configService *config.ConfigService, polymorphDBName string, rarityCollectionName string) {
 	var morphEvent types.PolymorphEvent
 
 	err := contractAbi.UnpackIntoInterface(&morphEvent, "TokenMinted", data)
@@ -91,10 +91,10 @@ func processTokenMintedEvent(contractAbi abi.ABI, data []byte, topics []common.H
 		log.Println("Empty gene mint event for morph id: " + morphEvent.MorphId.String())
 		return
 	}
-	processMorphAndPersist(morphEvent, configService, true)
+	processMorphAndPersist(morphEvent, configService, polymorphDBName, rarityCollectionName, true)
 }
 
-func processTokenMorphedEvent(topics []common.Hash, configService *config.ConfigService, contract *store.Store) {
+func processTokenMorphedEvent(topics []common.Hash, configService *config.ConfigService, contract *store.Store, polymorphDBName string, rarityCollectionName string) {
 	morphEvent := types.PolymorphEvent{
 		OldGene: topics[1].Big(),
 		NewGene: topics[2].Big(),
@@ -106,23 +106,23 @@ func processTokenMorphedEvent(topics []common.Hash, configService *config.Config
 	}
 	morphEvent.NewGene = result
 	if morphEvent.OldGene.String() != "0" {
-		processMorphAndPersist(morphEvent, configService, false)
+		processMorphAndPersist(morphEvent, configService, polymorphDBName, rarityCollectionName, false)
 	}
 }
 
-func processMorphAndPersist(event types.PolymorphEvent, configService *config.ConfigService, isVirgin bool) {
+func processMorphAndPersist(event types.PolymorphEvent, configService *config.ConfigService, polymorphDBName string, rarityCollectionName string, isVirgin bool) {
 	g := metadata.Genome(event.NewGene.String())
 	metadataJson := (&g).Metadata(event.MorphId.String(), configService)
 
 	setName, hasCompletedSet, scaledRarity, matchingTraits, setMatchingTraits, colorMismatches := rarityIndex.CalulateRarityScore(metadataJson.Attributes, isVirgin)
 	morphEntity := createMorphEntity(event, metadataJson.Attributes, setName, hasCompletedSet, isVirgin, scaledRarity, matchingTraits, setMatchingTraits, colorMismatches)
-	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity)
+	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Println(err)
 	} else {
 		log.Println(res)
 	}
-	handlers.UpdateRanking(morphEntity)
+	handlers.UpdateRanking(morphEntity, polymorphDBName, rarityCollectionName)
 
 }
 

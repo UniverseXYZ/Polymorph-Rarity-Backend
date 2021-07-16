@@ -33,7 +33,7 @@ func connectToEthereum() *dlt.EthereumClient {
 	return client
 }
 
-func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *config.ConfigService) {
+func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *config.ConfigService, string, string, string) {
 	// Load env variables
 	err := godotenv.Load()
 	if err != nil {
@@ -42,10 +42,22 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *confi
 
 	// Inital step: Recover to be up to date
 	ethClient := connectToEthereum()
-
+	polymorphDBName := os.Getenv("POLYMORPH_DB")
+	rarityCollectionName := os.Getenv("RARITY_COLLECTION")
+	blocksCollectionName := os.Getenv("BLOCKS_COLLECTION")
 	contractAddress := os.Getenv("CONTRACT_ADDRESS")
+
 	if contractAddress == "" {
-		log.Fatal("Missing contract address")
+		log.Fatal("Missing contract address in .env")
+	}
+	if polymorphDBName == "" {
+		log.Fatal("Missing polymorph db name in .env")
+	}
+	if rarityCollectionName == "" {
+		log.Fatal("Missing rarity collection name in .env")
+	}
+	if blocksCollectionName == "" {
+		log.Fatal("Missing block collection name in .env")
 	}
 
 	contractAbi, err := abi.JSON(strings.NewReader(string(store.StoreABI)))
@@ -60,7 +72,7 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *confi
 
 	configService := config.NewConfigService("./config.json")
 
-	return ethClient, contractAbi, instance, contractAddress, configService
+	return ethClient, contractAbi, instance, contractAddress, configService, polymorphDBName, rarityCollectionName, blocksCollectionName
 }
 
 func startAPI() {
@@ -71,17 +83,34 @@ func startAPI() {
 	log.Fatal(app.Listen(8000))
 }
 
-func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *config.ConfigService) {
+func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *config.ConfigService, polymorphDBName string, rarityCollectionName string, blocksCollectionName string) {
 	// Recover immediately
-	services.ProcessBlocks(ethClient, contractAbi, store, contractAddress, configService, int64(0), int64(0))
+	services.ProcessBlocks(ethClient, contractAbi, store, contractAddress, configService, polymorphDBName, rarityCollectionName, blocksCollectionName, int64(0), int64(0))
 	// Routine one: Start polling after recovery
-	gocron.Every(15).Second().Do(services.ProcessBlocks, ethClient, contractAbi, store, contractAddress, configService, int64(0), int64(0))
+	gocron.Every(15).Second().Do(services.ProcessBlocks, ethClient, contractAbi, store, contractAddress, configService, polymorphDBName, rarityCollectionName, blocksCollectionName, int64(0), int64(0))
 	<-gocron.Start()
 }
 
 func main() {
-	ethClient, contractAbi, instance, contractAddress, configService := initResources()
-	go recoverAndPoll(ethClient, contractAbi, instance, contractAddress, configService)
+	ethClient,
+		contractAbi,
+		instance,
+		contractAddress,
+		configService,
+		polymorphDBName,
+		rarityCollectionName,
+		blocksCollectionName := initResources()
+
+	go recoverAndPoll(
+		ethClient,
+		contractAbi,
+		instance,
+		contractAddress,
+		configService,
+		polymorphDBName,
+		rarityCollectionName,
+		blocksCollectionName)
+
 	startAPI()
 }
 

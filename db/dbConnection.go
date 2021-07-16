@@ -36,6 +36,16 @@ func connectToDb() *mongo.Client {
 	password := os.Getenv("PASSWORD")
 	dbUrl := os.Getenv("DB_URL")
 
+	if username == "" {
+		log.Fatalln("Missing username in .env")
+	}
+	if password == "" {
+		log.Fatalln("Missing password in .env")
+	}
+	if dbUrl == "" {
+		log.Fatalln("Missing db url in .env")
+	}
+
 	connectionStr := "mongodb+srv://" + username + ":" + password + "@" + dbUrl + "?retryWrites=true&w=majority"
 
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(connectionStr))

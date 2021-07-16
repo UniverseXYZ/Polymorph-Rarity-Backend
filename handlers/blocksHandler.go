@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"rarity-backend/config"
 	"rarity-backend/db"
 	"rarity-backend/models"
 	"strconv"
@@ -12,8 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func GetLastProcessedBlockNumber() (int64, error) {
-	collection, err := db.GetMongoDbCollection(config.POLYMORPH_DB, config.BLOCKS_COLLECTION)
+func GetLastProcessedBlockNumber(polymorphDBName string, blocksCollectionName string) (int64, error) {
+	collection, err := db.GetMongoDbCollection(polymorphDBName, blocksCollectionName)
 	if err != nil {
 		return 0, err
 	}
@@ -37,8 +36,8 @@ func GetLastProcessedBlockNumber() (int64, error) {
 	return block, nil
 }
 
-func CreateOrUpdateLastProcessedBlock(number uint64) (string, error) {
-	collection, err := db.GetMongoDbCollection(config.POLYMORPH_DB, config.BLOCKS_COLLECTION)
+func CreateOrUpdateLastProcessedBlock(number uint64, polymorphDBName string, blocksCollectionName string) (string, error) {
+	collection, err := db.GetMongoDbCollection(polymorphDBName, blocksCollectionName)
 	if err != nil {
 		return "", err
 	}

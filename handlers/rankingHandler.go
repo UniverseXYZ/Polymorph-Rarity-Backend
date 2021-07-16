@@ -3,30 +3,30 @@ package handlers
 import (
 	"context"
 	"log"
-	"rarity-backend/config"
 	"rarity-backend/db"
 	"rarity-backend/models"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type RankMutex struct {
 	rank       int
 	prevRarity int
-	entities   []models.PolymorphEntity
+	operations []mongo.WriteModel
 	mutex      sync.Mutex
 }
 
-func UpdateRanking(currEntity models.PolymorphEntity) {
+func UpdateRanking(currEntity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string) {
 	ranking := RankMutex{}
-	collection, err := db.GetMongoDbCollection(config.POLYMORPH_DB, config.RARITY_COLLECTION)
+	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Println(err)
 	}
 
-	entities := make([]models.PolymorphEntity, 10)
+	var entities []models.PolymorphEntity
 	results, err := collection.Find(context.Background(), bson.M{"rarirtyscore": bson.M{"$lte": currEntity.RarityScore}})
 	if err != nil {
 		log.Println(err)
@@ -53,7 +53,7 @@ func UpdateRanking(currEntity models.PolymorphEntity) {
 	}
 	wg.Wait()
 
-	err = CreateOrUpdatePolymorphEntities(ranking.entities)
+	err = CreateOrUpdatePolymorphEntities(ranking.operations, polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Println(err)
 	}
@@ -61,13 +61,18 @@ func UpdateRanking(currEntity models.PolymorphEntity) {
 
 func setRank(entity models.PolymorphEntity, ranking *RankMutex, wg *sync.WaitGroup) {
 	ranking.mutex.Lock()
+
 	if ranking.prevRarity != entity.RarityScore {
 		ranking.rank++
 		ranking.prevRarity = entity.RarityScore
 	}
-	entity.Rank = ranking.rank
-	ranking.entities = append(ranking.entities, entity)
 
+	if entity.Rank != ranking.rank {
+		operation := mongo.NewUpdateOneModel()
+		operation.SetFilter(bson.M{"tokenid": entity.TokenId})
+		operation.SetUpdate(bson.M{"$set": bson.M{"rank": ranking.rank}})
+		ranking.operations = append(ranking.operations, operation)
+	}
 	ranking.mutex.Unlock()
 	wg.Done()
 }
