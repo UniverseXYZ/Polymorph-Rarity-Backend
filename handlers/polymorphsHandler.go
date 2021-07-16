@@ -38,10 +38,13 @@ func GetPolymorphs(c *fiber.Ctx) {
 	findOptions.SetSkip((page - 1) * take)
 
 	sortField := c.Query("sortField")
-	sortDir, err := strconv.Atoi(c.Query("sortDir"))
-	if err != nil {
-		sortDir = 1
+	sortDirQuery := c.Query("sortDir") // desc, asc
+	sortDir := 1
+
+	if sortDirQuery == "desc" {
+		sortDir = -1
 	}
+
 	if sortField != "" {
 		findOptions.SetSort(bson.D{{sortField, sortDir}})
 	}
