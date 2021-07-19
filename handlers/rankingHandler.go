@@ -5,6 +5,7 @@ import (
 	"log"
 	"rarity-backend/db"
 	"rarity-backend/models"
+	"rarity-backend/types"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,15 +13,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type RankMutex struct {
-	rank       int
-	prevRarity int
-	operations []mongo.WriteModel
-	mutex      sync.Mutex
-}
-
 func UpdateRanking(currEntity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string) {
-	ranking := RankMutex{}
+	ranking := types.RankMutex{}
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Println(err)
@@ -53,26 +47,26 @@ func UpdateRanking(currEntity models.PolymorphEntity, polymorphDBName string, ra
 	}
 	wg.Wait()
 
-	err = CreateOrUpdatePolymorphEntities(ranking.operations, polymorphDBName, rarityCollectionName)
+	err = CreateOrUpdatePolymorphEntities(ranking.Operations, polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func setRank(entity models.PolymorphEntity, ranking *RankMutex, wg *sync.WaitGroup) {
-	ranking.mutex.Lock()
+func setRank(entity models.PolymorphEntity, ranking *types.RankMutex, wg *sync.WaitGroup) {
+	ranking.Mutex.Lock()
 
-	if ranking.prevRarity != entity.RarityScore {
-		ranking.rank++
-		ranking.prevRarity = entity.RarityScore
+	if ranking.PrevRarity != entity.RarityScore {
+		ranking.Rank++
+		ranking.PrevRarity = entity.RarityScore
 	}
 
-	if entity.Rank != ranking.rank {
+	if entity.Rank != ranking.Rank {
 		operation := mongo.NewUpdateOneModel()
 		operation.SetFilter(bson.M{"tokenid": entity.TokenId})
-		operation.SetUpdate(bson.M{"$set": bson.M{"rank": ranking.rank}})
-		ranking.operations = append(ranking.operations, operation)
+		operation.SetUpdate(bson.M{"$set": bson.M{"rank": ranking.Rank}})
+		ranking.Operations = append(ranking.Operations, operation)
 	}
-	ranking.mutex.Unlock()
+	ranking.Mutex.Unlock()
 	wg.Done()
 }
