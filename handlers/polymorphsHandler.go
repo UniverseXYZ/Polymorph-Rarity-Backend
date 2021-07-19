@@ -112,7 +112,7 @@ func GetPolymorphById(c *fiber.Ctx) {
 	c.Send(json)
 }
 
-func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string) (string, error) {
+func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string, oldGene string) (string, error) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
 		return "", err
@@ -120,8 +120,16 @@ func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBNam
 	// This option will create new entity if no matching is found
 	opts := options.Update().SetUpsert(true)
 	filter := bson.M{"tokenid": entity.TokenId}
-	update := bson.M{
-		"$set": entity,
+	var update bson.M
+	if oldGene == "0" {
+		update = bson.M{
+			"$set": entity,
+		}
+	} else {
+		update = bson.M{
+			"$set":  entity,
+			"$push": bson.M{"oldgenes": oldGene},
+		}
 	}
 
 	res, err := collection.UpdateOne(context.Background(), filter, update, opts)

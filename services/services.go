@@ -116,7 +116,7 @@ func processMorphAndPersist(event types.PolymorphEvent, configService *config.Co
 
 	setName, hasCompletedSet, scaledRarity, matchingTraits, setMatchingTraits, colorMismatches := rarityIndex.CalulateRarityScore(metadataJson.Attributes, isVirgin)
 	morphEntity := createMorphEntity(event, metadataJson.Attributes, setName, hasCompletedSet, isVirgin, scaledRarity, matchingTraits, setMatchingTraits, colorMismatches)
-	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName)
+	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, event.OldGene.String())
 	if err != nil {
 		log.Println(err)
 	} else {
@@ -154,8 +154,7 @@ func createMorphEntity(event types.PolymorphEvent, attributes []metadata.Attribu
 
 	morphEntity := models.PolymorphEntity{
 		TokenId:         event.MorphId.String(),
-		OldGene:         event.OldGene.String(),
-		NewGene:         event.NewGene.String(),
+		CurrentGene:     event.NewGene.String(),
 		Headwear:        head.Value,
 		Eyewear:         eye.Value,
 		Torso:           torso.Value,

@@ -3,8 +3,7 @@ package models
 type PolymorphEntity struct {
 	TokenId         string   `json:"tokenid,omitempty"`
 	Rank            int      `json:"rank,omitempty"`
-	OldGene         string   `json:"oldgene,omitempty"`
-	NewGene         string   `json:"newgene,omitempty"`
+	CurrentGene     string   `json:"currentgene,omitempty"`
 	Headwear        string   `json:"headwear,omitempty"`
 	Eyewear         string   `json:"eyewear,omitempty"`
 	Torso           string   `json:"torso,omitempty"`
