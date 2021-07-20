@@ -127,7 +127,7 @@
 		{"name": "No Eyewear", "sets": ["Naked"]},
 		{"name": "3D Glasses", "sets": ["Party Degen"]},
 		{"name": "Bar Shades", "sets": ["Party Degen"]},
-		{"name": "Eye Paint", "sets": [""]},
+		{"name": "Eye Paint", "sets": []},
 		{"name": "Golden Sunglasses", "sets": ["Golden Suit"]},
 		{"name": "Monocle", "sets": ["Plaid Suit", "Black Suit", "Brown Suit", "Grey Suit"]},
 		{"name": "Orange Sunglasses", "sets": ["Party Degen"]},

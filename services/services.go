@@ -110,13 +110,26 @@ func processTokenMorphedEvent(topics []common.Hash, configService *config.Config
 	}
 }
 
+func detectGeneDifferences(oldGene string, newGene string) int {
+	var differences int
+	for i := range oldGene {
+		if oldGene[i] != newGene[i] {
+			differences++
+		}
+	}
+
+	return differences
+}
+
 func processMorphAndPersist(event types.PolymorphEvent, configService *config.ConfigService, polymorphDBName string, rarityCollectionName string, isVirgin bool) {
 	g := metadata.Genome(event.NewGene.String())
 	metadataJson := (&g).Metadata(event.MorphId.String(), configService)
+	// TODO: Determine if Single or full scramble and pass it as params
+	geneDifferences := detectGeneDifferences(event.OldGene.String(), event.NewGene.String())
 
-	setName, hasCompletedSet, scaledRarity, matchingTraits, setMatchingTraits, colorMismatches := rarityIndex.CalulateRarityScore(metadataJson.Attributes, isVirgin)
-	morphEntity := createMorphEntity(event, metadataJson.Attributes, setName, hasCompletedSet, isVirgin, scaledRarity, matchingTraits, setMatchingTraits, colorMismatches)
-	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, event.OldGene.String())
+	rarityResult := rarityIndex.CalulateRarityScore(metadataJson.Attributes, isVirgin)
+	morphEntity := createMorphEntity(event, metadataJson.Attributes, isVirgin, rarityResult)
+	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, event.OldGene.String(), geneDifferences)
 	if err != nil {
 		log.Println(err)
 	} else {
@@ -126,7 +139,7 @@ func processMorphAndPersist(event types.PolymorphEvent, configService *config.Co
 
 }
 
-func createMorphEntity(event types.PolymorphEvent, attributes []metadata.Attribute, setName string, hasCompletedSet bool, isVirgin bool, scaledRarity int, matchingTraits float64, setMatchingTraits []string, colorMismatches float64) models.PolymorphEntity {
+func createMorphEntity(event types.PolymorphEvent, attributes []metadata.Attribute, isVirgin bool, rarityResult types.RarityResult) models.PolymorphEntity {
 	var background, leftHand, rightHand, head, eye, torso, pants, feet, character metadata.Attribute
 
 	for _, attr := range attributes {
@@ -153,21 +166,32 @@ func createMorphEntity(event types.PolymorphEvent, attributes []metadata.Attribu
 	}
 
 	morphEntity := models.PolymorphEntity{
-		TokenId:         event.MorphId.String(),
-		CurrentGene:     event.NewGene.String(),
-		Headwear:        head.Value,
-		Eyewear:         eye.Value,
-		Torso:           torso.Value,
-		Pants:           pants.Value,
-		Footwear:        feet.Value,
-		LeftHand:        leftHand.Value,
-		RightHand:       rightHand.Value,
-		Character:       character.Value,
-		Background:      background.Value,
-		RarityScore:     scaledRarity,
-		IsVirgin:        isVirgin,
-		MatchingTraits:  setMatchingTraits,
-		ColorMismatches: int(colorMismatches),
+		TokenId:               event.MorphId.String(),
+		Rank:                  0,
+		CurrentGene:           event.NewGene.String(),
+		Headwear:              head.Value,
+		Eyewear:               eye.Value,
+		Torso:                 torso.Value,
+		Pants:                 pants.Value,
+		Footwear:              feet.Value,
+		LeftHand:              leftHand.Value,
+		RightHand:             rightHand.Value,
+		Character:             character.Value,
+		Background:            background.Value,
+		RarityScore:           rarityResult.ScaledRarity,
+		IsVirgin:              isVirgin,
+		ColorMismatches:       int(rarityResult.ColorMismatches),
+		MainSetName:           rarityResult.MainSetName,
+		MainMatchingTraits:    rarityResult.MainMatchingTraits,
+		SecSetName:            rarityResult.SecSetName,
+		SecMatchingTraits:     rarityResult.SecMatchingTraits,
+		HasCompletedSet:       rarityResult.HasCompletedSet,
+		HandsScaler:           rarityResult.ColorMismatches,
+		NoColorMismatchScaler: rarityResult.NoColorMismatchScaler,
+		ColorMismatchScaler:   rarityResult.ColorMismatches,
+		DegenScaler:           rarityResult.DegenScaler,
+		VirginScaler:          rarityResult.VirginScaler,
+		BaseRarity:            rarityResult.BaseRarity,
 	}
 	return morphEntity
 }

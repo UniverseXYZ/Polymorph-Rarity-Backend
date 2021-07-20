@@ -112,7 +112,7 @@ func GetPolymorphById(c *fiber.Ctx) {
 	c.Send(json)
 }
 
-func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string, oldGene string) (string, error) {
+func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string, oldGene string, geneDiff int) (string, error) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
 		return "", err
@@ -125,13 +125,20 @@ func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBNam
 		update = bson.M{
 			"$set": entity,
 		}
+	} else if geneDiff <= 2 {
+		update = bson.M{
+			"$set":  entity,
+			"$push": bson.M{"oldgenes": oldGene},
+			"$inc":  bson.M{"morphs": oldGene},
+		}
 	} else {
 		update = bson.M{
 			"$set":  entity,
 			"$push": bson.M{"oldgenes": oldGene},
+			"$inc":  bson.M{"scrambles": oldGene},
 		}
 	}
-
+	//TODO:  Maybe save current version of the poly in another table before updating??
 	res, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		return "", err

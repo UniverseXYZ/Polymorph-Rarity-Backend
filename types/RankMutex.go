@@ -8,7 +8,7 @@ import (
 
 type RankMutex struct {
 	Rank       int
-	PrevRarity int
+	PrevRarity float64
 	Operations []mongo.WriteModel
 	Mutex      sync.Mutex
 }
