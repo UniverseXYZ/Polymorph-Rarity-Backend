@@ -39,8 +39,8 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 			go processMint(ethLog, &wg, contractAbi, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, &mintsMutex)
 		}
 	}
-	wg.Wait()
 
+	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
 		handlers.InsertManyMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
 	}
@@ -188,7 +188,7 @@ func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi
 		MorphId: mId,
 	}, metadataJson.Attributes, false, rarityResult)
 
-	res, err := handlers.CreateOrUpdateLeftoverPolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
+	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
 	if err != nil {
 		log.Println(err)
 	} else {
