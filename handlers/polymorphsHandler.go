@@ -30,7 +30,8 @@ func GetPolymorphs(c *fiber.Ctx) {
 	}
 
 	var findOptions options.FindOptions
-
+	// TODO: Add select query param for the rest of the params
+	findOptions.SetProjection(bson.M{"_id": 0})
 	take, err := strconv.ParseInt(c.Query("take"), 10, 64)
 	if err != nil || take > RESULTS_LIMIT {
 		take = RESULTS_LIMIT
@@ -133,13 +134,6 @@ func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBNam
 		return "", err
 	}
 
-	// if len(entity.SecMatchingTraits) == 0 {
-	// 	update["$pull"] = bson.M{"secmatchingtraits": &[]string{}}
-	// 	res, err = collection.UpdateOne(context.Background(), filter, update, opts)
-	// 	if err != nil {
-	// 		return "", err
-	// 	}
-	// }
 	if res.UpsertedCount != 0 {
 		return "Inserted id in polymorph db: " + entity.TokenId, nil
 	} else if res.ModifiedCount != 0 {
