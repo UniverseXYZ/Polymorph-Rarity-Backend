@@ -41,7 +41,9 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	}
 	wg.Wait()
 
-	handlers.InsertManyMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
+	if len(mintsMutex.Documents) > 0 {
+		handlers.InsertManyMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
+	}
 
 	// Sort polymorphs
 	helpers.SortMorphEvents(eventLogsMutex.EventLogs)
