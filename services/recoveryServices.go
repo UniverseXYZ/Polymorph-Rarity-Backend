@@ -40,12 +40,8 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 		}
 	}
 	wg.Wait()
-	if len(mintsMutex.Documents) > 0 && len(mintsMutex.Documents) == 10000 {
-		handlers.InsertManyMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
-	} else if len(mintsMutex.Documents) > 0 && len(mintsMutex.Documents) != 10000 {
-		log.Printf("Expected 10000 mints, found %v. Please check config and restart app", len(mintsMutex.Documents))
-		handlers.InsertManyMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
-	}
+
+	handlers.InsertManyMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
 
 	// Sort polymorphs
 	helpers.SortMorphEvents(eventLogsMutex.EventLogs)
@@ -58,7 +54,7 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 		}
 	}
 
-	// Persist leftover morphs
+	// Persist final scrambles
 	for id := range genesMap {
 		ethLog := tokenToMorphEvent[id]
 		processLeftoverMorphs(ethLog, &wg, contractAbi, instance, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, dbInfo.TransactionsCollectionName, txState, genesMap)
@@ -195,5 +191,62 @@ func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi
 		log.Println(err)
 	} else {
 		log.Println(res)
+	}
+}
+
+// This should be only used when you are GUARANTEED that there will be no more than one event for a single polymorph in each poll -> It writes incorrect data when there are > 1
+func processMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, instance *store.Store, configService *config.ConfigService, polymorphDBName string,
+	rarityCollectionName string, transactionsCollectionName string, txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log) {
+	var mEvent rarityTypes.MorphedEvent
+	err := contractAbi.UnpackIntoInterface(&mEvent, "TokenMorphed", morphEvent.Data)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// 1 is Morph event
+	txMap, hasTxMap := txState[morphEvent.TxHash.Hex()]
+	if mEvent.EventType == 1 && (!hasTxMap || !txMap[morphEvent.Index]) {
+		log.Println()
+		log.Printf("\nBlock Num: %v\nTxIndex: %v\nEventIndex:%v\n", morphEvent.BlockNumber, morphEvent.TxIndex, morphEvent.Index)
+
+		mId := morphEvent.Topics[1].Big()
+
+		// This will get the newest gene
+		result, err := instance.GeneOf(&bind.CallOpts{}, mId)
+		if err != nil {
+			log.Println(err)
+		}
+		mEvent.NewGene = result
+		geneDifferences := helpers.DetectGeneDifferences(mEvent.OldGene.String(), mEvent.NewGene.String())
+
+		g := metadata.Genome(mEvent.NewGene.String())
+		metadataJson := (&g).Metadata(mId.String(), configService)
+
+		rarityResult := rarityIndex.CalulateRarityScore(metadataJson.Attributes, false)
+		morphEntity := helpers.CreateMorphEntity(rarityTypes.PolymorphEvent{
+			NewGene: mEvent.NewGene,
+			OldGene: mEvent.OldGene,
+			MorphId: mId,
+		}, metadataJson.Attributes, false, rarityResult)
+		res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Println(res)
+		}
+
+		if !hasTxMap {
+			txMap = make(map[uint]bool)
+			txState[morphEvent.TxHash.Hex()] = txMap
+		}
+		txState[morphEvent.TxHash.Hex()][morphEvent.Index] = true
+		go handlers.SaveTransaction(polymorphDBName, transactionsCollectionName, rarityTypes.Transaction{
+			BlockNumber: morphEvent.BlockNumber,
+			TxIndex:     morphEvent.TxIndex,
+			TxHash:      morphEvent.TxHash.Hex(),
+			LogIndex:    morphEvent.Index,
+		})
+	} else if txMap[morphEvent.Index] {
+		log.Println("Already processed morph event! Skipping...")
 	}
 }

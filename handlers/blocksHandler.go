@@ -30,7 +30,6 @@ func GetLastProcessedBlockNumber(polymorphDBName string, blocksCollectionName st
 		return 0, err
 	}
 
-	// HOW TO GET IT
 	lastProcessedBlockNumber := result["number"]
 	block := lastProcessedBlockNumber.(int64)
 	return block, nil

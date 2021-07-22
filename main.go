@@ -118,7 +118,7 @@ func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *s
 	// Recover immediately
 	services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap)
 	// Routine one: Start polling after recovery
-	gocron.Every(15).Second().Do(services.PollProcess, ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap)
+	gocron.Every(15).Second().Do(services.RecoverProcess, ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap)
 	<-gocron.Start()
 }
 

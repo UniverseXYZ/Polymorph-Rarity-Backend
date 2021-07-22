@@ -33,7 +33,6 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) rarityT
 	noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler := getScalers(hasCompletedSet, setName, colorMismatches, isVirgin)
 
 	baseRarity := math.Pow(2, (matchingTraitsCount - (config.MISMATCH_PENALTY * colorMismatches)))
-	// TODO: Ask ryan about scalers sum/multiply
 	// (No color mismatches scaler/Color mismatches scaler) * Hands scaler / Degen scaler  ) + Virgin scaler)
 	totalScalars := (noColorMismatchScaler * colorMismatchScaler * correctHandsScaler * degenScaler)
 	scaledRarity := (math.Round((baseRarity * totalScalars * virginScaler * 100)) / 100)
