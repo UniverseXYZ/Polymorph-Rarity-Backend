@@ -63,6 +63,12 @@ func CreateMorphEntity(event rarityTypes.PolymorphEvent, attributes []metadata.A
 		VirginScaler:          rarityResult.VirginScaler,
 		BaseRarity:            rarityResult.BaseRarity,
 	}
+	if len(morphEntity.SecMatchingTraits) == 0 {
+		morphEntity.SecMatchingTraits = []string{}
+	}
+	if len(morphEntity.MainMatchingTraits) == 0 {
+		morphEntity.MainMatchingTraits = []string{}
+	}
 	return morphEntity
 }
 

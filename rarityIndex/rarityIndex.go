@@ -183,6 +183,12 @@ func calculateCompleteSets(attributes []metadata.Attribute) (bool, string, float
 	mainMatchingTraits := setTraitsMap[mainSetName]
 	secondaryMatchingTraits := setTraitsMap[secondarySetName]
 
+	// It would be bad to have degen as main set while you have secondary set with the same number of traits
+	if len(mainMatchingTraits) == len(secondaryMatchingTraits) && mainSetName == "Party Degen" {
+		mainSetName, secondarySetName = secondarySetName, mainSetName
+		mainMatchingTraits, secondaryMatchingTraits = secondaryMatchingTraits, mainMatchingTraits
+	}
+
 	return hasCompletedSet, mainSetName, float64(mainSet), mainMatchingTraits, secondarySetName, secondaryMatchingTraits
 }
 
