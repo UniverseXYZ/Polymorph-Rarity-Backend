@@ -121,24 +121,61 @@ func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBNam
 	opts := options.Update().SetUpsert(true)
 	filter := bson.M{"tokenid": entity.TokenId}
 	var update bson.M
-	if oldGene == "0" {
+	if geneDiff == 0 {
 		update = bson.M{
-			"$set": entity,
+			"$set":  entity,
+			"$push": bson.M{"oldgenes": oldGene},
 		}
 	} else if geneDiff <= 2 {
 		update = bson.M{
 			"$set":  entity,
 			"$push": bson.M{"oldgenes": oldGene},
-			"$inc":  bson.M{"morphs": oldGene},
+			"$inc":  bson.M{"morphs": 1},
 		}
 	} else {
 		update = bson.M{
 			"$set":  entity,
 			"$push": bson.M{"oldgenes": oldGene},
-			"$inc":  bson.M{"scrambles": oldGene},
+			"$inc":  bson.M{"scrambles": 1},
 		}
 	}
-	//TODO:  Maybe save current version of the poly in another table before updating??
+	res, err := collection.UpdateOne(context.Background(), filter, update, opts)
+	if err != nil {
+		return "", err
+	}
+	if res.UpsertedCount != 0 {
+		return "Inserted id in polymorph db: " + entity.TokenId, nil
+	} else if res.ModifiedCount != 0 {
+		return "Updated id in polymorph db: " + entity.TokenId, nil
+	} else {
+		return "Didn't do shit in polymorph db (probably score is the same): " + entity.TokenId, nil
+	}
+}
+
+func CreateOrUpdateLeftoverPolymorphEntity(entity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string, oldGene string, geneDiff int) (string, error) {
+	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
+	if err != nil {
+		return "", err
+	}
+	// This option will create new entity if no matching is found
+	opts := options.Update().SetUpsert(true)
+	filter := bson.M{"tokenid": entity.TokenId}
+	var update bson.M
+	if geneDiff == 0 {
+		update = bson.M{
+			"$set": entity,
+		}
+	} else if geneDiff <= 2 {
+		update = bson.M{
+			"$set": entity,
+			"$inc": bson.M{"morphs": 1},
+		}
+	} else {
+		update = bson.M{
+			"$set": entity,
+			"$inc": bson.M{"scrambles": 1},
+		}
+	}
 	res, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		return "", err
@@ -164,7 +201,19 @@ func CreateOrUpdatePolymorphEntities(operations []mongo.WriteModel, polymorphDBN
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Printf("Updated %v entities' rank in polymorph db", res.ModifiedCount)
 	return nil
+}
+
+func InsertManyMintEvents(bsonDocs []interface{}, polymorphDBName string, rarityCollectionName string) {
+	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	res, err := collection.InsertMany(context.Background(), bsonDocs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Inserted %v polymorphs in DB", len(res.InsertedIDs))
 }

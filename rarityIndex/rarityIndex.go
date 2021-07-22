@@ -6,11 +6,11 @@ import (
 	"math"
 	"rarity-backend/config"
 	"rarity-backend/metadata"
-	"rarity-backend/types"
+	"rarity-backend/rarityTypes"
 	"strings"
 )
 
-func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) types.RarityResult {
+func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) rarityTypes.RarityResult {
 	var leftHand, rightHand metadata.Attribute
 	var virginScaler float64 = 1
 	var rarityAttributes []metadata.Attribute
@@ -20,10 +20,8 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) types.R
 		case "Background", "Character":
 		case "Right Hand":
 			rightHand = attr
-			rarityAttributes = append(rarityAttributes, attr)
 		case "Left Hand":
 			leftHand = attr
-			rarityAttributes = append(rarityAttributes, attr)
 		default:
 			rarityAttributes = append(rarityAttributes, attr)
 		}
@@ -41,7 +39,7 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) types.R
 	scaledRarity := (math.Round((baseRarity * totalScalars * virginScaler * 100)) / 100)
 	log.Println("Rarity index: " + fmt.Sprintf("%f", (scaledRarity)))
 
-	return types.RarityResult{
+	return rarityTypes.RarityResult{
 		HasCompletedSet:       hasCompletedSet,
 		MainSetName:           setName,
 		MainMatchingTraits:    mainMatchingTraits,
@@ -59,7 +57,7 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) types.R
 }
 
 func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, isVirgin bool) (float64, float64, float64, float64) {
-	var noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler float64 = 1, 1, 1, 0
+	var noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler float64 = 1, 1, 1, 1
 
 	if hasCompletedSet && colorMismatches == 0 {
 		noColorMismatchScaler = config.NO_COLOR_MISMATCH_SCALER

@@ -8,6 +8,7 @@ import (
 	"rarity-backend/config"
 	"rarity-backend/dlt"
 	"rarity-backend/handlers"
+	"rarity-backend/rarityTypes"
 	"rarity-backend/services"
 	"rarity-backend/store"
 
@@ -33,7 +34,7 @@ func connectToEthereum() *dlt.EthereumClient {
 	return client
 }
 
-func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *config.ConfigService, string, string, string) {
+func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *config.ConfigService, rarityTypes.DBInfo) {
 	// Load env variables
 	err := godotenv.Load()
 	if err != nil {
@@ -46,6 +47,7 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *confi
 	rarityCollectionName := os.Getenv("RARITY_COLLECTION")
 	blocksCollectionName := os.Getenv("BLOCKS_COLLECTION")
 	contractAddress := os.Getenv("CONTRACT_ADDRESS")
+	transactionsCollectionName := os.Getenv("TRANSACTIONS_COLLECTION")
 
 	if contractAddress == "" {
 		log.Fatal("Missing contract address in .env")
@@ -59,6 +61,9 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *confi
 	if blocksCollectionName == "" {
 		log.Fatal("Missing block collection name in .env")
 	}
+	if transactionsCollectionName == "" {
+		log.Fatal("Missing transactions collection name in .env")
+	}
 
 	contractAbi, err := abi.JSON(strings.NewReader(string(store.StoreABI)))
 	if err != nil {
@@ -71,8 +76,32 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *confi
 	}
 
 	configService := config.NewConfigService("./config.json")
+	dbInfo := rarityTypes.DBInfo{
+		PolymorphDBName:            polymorphDBName,
+		RarityCollectionName:       rarityCollectionName,
+		TransactionsCollectionName: transactionsCollectionName,
+		BlocksCollectionName:       blocksCollectionName,
+	}
+	return ethClient, contractAbi, instance, contractAddress, configService, dbInfo
+}
 
-	return ethClient, contractAbi, instance, contractAddress, configService, polymorphDBName, rarityCollectionName, blocksCollectionName
+func main() {
+	ethClient,
+		contractAbi,
+		instance,
+		contractAddress,
+		configService,
+		dbInfo := initResources()
+
+	go recoverAndPoll(
+		ethClient,
+		contractAbi,
+		instance,
+		contractAddress,
+		configService,
+		dbInfo)
+
+	startAPI()
 }
 
 func startAPI() {
@@ -83,35 +112,14 @@ func startAPI() {
 	log.Fatal(app.Listen(8000))
 }
 
-func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *config.ConfigService, polymorphDBName string, rarityCollectionName string, blocksCollectionName string) {
+func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *config.ConfigService, dbInfo rarityTypes.DBInfo) {
+	// Build transactions scramble transaction mapping from db
+	txMap := handlers.GetTransactionsMapping(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
 	// Recover immediately
-	services.ProcessBlocks(ethClient, contractAbi, store, contractAddress, configService, polymorphDBName, rarityCollectionName, blocksCollectionName, int64(0), int64(0))
+	services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap)
 	// Routine one: Start polling after recovery
-	gocron.Every(15).Second().Do(services.ProcessBlocks, ethClient, contractAbi, store, contractAddress, configService, polymorphDBName, rarityCollectionName, blocksCollectionName, int64(0), int64(0))
+	gocron.Every(15).Second().Do(services.PollProcess, ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap)
 	<-gocron.Start()
-}
-
-func main() {
-	ethClient,
-		contractAbi,
-		instance,
-		contractAddress,
-		configService,
-		polymorphDBName,
-		rarityCollectionName,
-		blocksCollectionName := initResources()
-
-	go recoverAndPoll(
-		ethClient,
-		contractAbi,
-		instance,
-		contractAddress,
-		configService,
-		polymorphDBName,
-		rarityCollectionName,
-		blocksCollectionName)
-
-	startAPI()
 }
 
 // func main() {

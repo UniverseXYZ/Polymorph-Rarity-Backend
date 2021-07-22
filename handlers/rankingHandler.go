@@ -5,7 +5,7 @@ import (
 	"log"
 	"rarity-backend/db"
 	"rarity-backend/models"
-	"rarity-backend/types"
+	"rarity-backend/rarityTypes"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,7 +14,7 @@ import (
 )
 
 func UpdateRanking(currEntity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string) {
-	ranking := types.RankMutex{}
+	ranking := rarityTypes.RankMutex{}
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Println(err)
@@ -53,7 +53,40 @@ func UpdateRanking(currEntity models.PolymorphEntity, polymorphDBName string, ra
 	}
 }
 
-func setRank(entity models.PolymorphEntity, ranking *types.RankMutex, wg *sync.WaitGroup) {
+func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
+	ranking := rarityTypes.RankMutex{}
+	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
+	if err != nil {
+		log.Println(err)
+	}
+
+	var entities []models.PolymorphEntity
+
+	var findOptions options.FindOptions
+	findOptions.SetLimit(10000)
+	findOptions.SetSort(bson.D{{"rarityscore", -1}})
+	results, err := collection.Find(context.Background(), bson.D{}, &findOptions)
+	if err != nil {
+		log.Println(err)
+	}
+
+	results.All(context.Background(), &entities)
+
+	var wg sync.WaitGroup
+	for _, entity := range entities {
+		wg.Add(1)
+		setRank(entity, &ranking, &wg)
+	}
+	wg.Wait()
+	if len(ranking.Operations) > 0 {
+		err = CreateOrUpdatePolymorphEntities(ranking.Operations, polymorphDBName, rarityCollectionName)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
+
+func setRank(entity models.PolymorphEntity, ranking *rarityTypes.RankMutex, wg *sync.WaitGroup) {
 	ranking.Mutex.Lock()
 
 	if ranking.PrevRarity != entity.RarityScore {
