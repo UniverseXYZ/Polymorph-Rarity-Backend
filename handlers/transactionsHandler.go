@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"rarity-backend/db"
-	"rarity-backend/rarityTypes"
+	"rarity-backend/models"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -16,7 +16,7 @@ func GetTransactionsMapping(polymorphDBName string, transactionsColl string) map
 		log.Fatalln(err)
 	}
 
-	var transactions []rarityTypes.Transaction
+	var transactions []models.Transaction
 	results, err := collection.Find(context.Background(), bson.M{})
 	if err != nil {
 		log.Println(err)
@@ -37,7 +37,7 @@ func GetTransactionsMapping(polymorphDBName string, transactionsColl string) map
 	return txMap
 }
 
-func SaveTransaction(polymorphDBName string, transactionsColl string, transaction rarityTypes.Transaction) {
+func SaveTransaction(polymorphDBName string, transactionsColl string, transaction models.Transaction) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, transactionsColl)
 	if err != nil {
 		log.Fatalln(err)
@@ -52,6 +52,6 @@ func SaveTransaction(polymorphDBName string, transactionsColl string, transactio
 		log.Fatalln(err)
 	}
 
-	log.Printf("Inserted new transaction in DB:\ntxHash: %v\nLogIndex: %v", transaction.TxHash, transaction.LogIndex)
+	log.Printf("\nInserted new transaction in DB:\ntxHash: %v\nLogIndex: %v", transaction.TxHash, transaction.LogIndex)
 	log.Println()
 }

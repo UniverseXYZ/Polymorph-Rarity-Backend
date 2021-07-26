@@ -125,8 +125,10 @@ func CreateOrUpdatePolymorphEntity(entity models.PolymorphEntity, polymorphDBNam
 	update["$set"] = entity
 
 	if geneDiff > 0 && geneDiff <= 2 {
+		update["$push"] = bson.M{"oldgenes": oldGene}
 		update["$inc"] = bson.M{"morphs": 1}
 	} else if geneDiff > 2 {
+		update["$push"] = bson.M{"oldgenes": oldGene}
 		update["$inc"] = bson.M{"scrambles": 1}
 	}
 	res, err := collection.UpdateOne(context.Background(), filter, update, opts)

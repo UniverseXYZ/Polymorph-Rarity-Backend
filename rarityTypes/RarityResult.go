@@ -7,7 +7,9 @@ type RarityResult struct {
 	SecSetName            string
 	SecMatchingTraits     []string
 	ColorMismatches       float64
+	HandsSetName          string
 	HandsScaler           float64
+	MatchingHands         int
 	NoColorMismatchScaler float64
 	ColorMismatchScaler   float64
 	DegenScaler           float64

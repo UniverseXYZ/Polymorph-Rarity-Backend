@@ -9,6 +9,7 @@ import (
 	"rarity-backend/handlers"
 	"rarity-backend/helpers"
 	"rarity-backend/metadata"
+	"rarity-backend/models"
 	"rarity-backend/rarityIndex"
 	"rarity-backend/rarityTypes"
 	"rarity-backend/store"
@@ -148,7 +149,7 @@ func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi 
 			txState[morphEvent.TxHash.Hex()] = txMap
 		}
 		txState[morphEvent.TxHash.Hex()][morphEvent.Index] = true
-		go handlers.SaveTransaction(polymorphDBName, transactionsCollectionName, rarityTypes.Transaction{
+		go handlers.SaveTransaction(polymorphDBName, transactionsCollectionName, models.Transaction{
 			BlockNumber: morphEvent.BlockNumber,
 			TxIndex:     morphEvent.TxIndex,
 			TxHash:      morphEvent.TxHash.Hex(),
@@ -184,11 +185,10 @@ func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi
 	rarityResult := rarityIndex.CalulateRarityScore(metadataJson.Attributes, false)
 	morphEntity := helpers.CreateMorphEntity(rarityTypes.PolymorphEvent{
 		NewGene: mEvent.NewGene,
-		OldGene: mEvent.OldGene,
 		MorphId: mId,
 	}, metadataJson.Attributes, false, rarityResult)
 
-	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
+	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, oldGenesMap[mId.String()], geneDifferences)
 	if err != nil {
 		log.Println(err)
 	} else {
@@ -212,7 +212,6 @@ func processMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI
 		log.Printf("\nBlock Num: %v\nTxIndex: %v\nEventIndex:%v\n", morphEvent.BlockNumber, morphEvent.TxIndex, morphEvent.Index)
 
 		mId := morphEvent.Topics[1].Big()
-
 		// This will get the newest gene
 		result, err := instance.GeneOf(&bind.CallOpts{}, mId)
 		if err != nil {
@@ -242,7 +241,7 @@ func processMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI
 			txState[morphEvent.TxHash.Hex()] = txMap
 		}
 		txState[morphEvent.TxHash.Hex()][morphEvent.Index] = true
-		go handlers.SaveTransaction(polymorphDBName, transactionsCollectionName, rarityTypes.Transaction{
+		go handlers.SaveTransaction(polymorphDBName, transactionsCollectionName, models.Transaction{
 			BlockNumber: morphEvent.BlockNumber,
 			TxIndex:     morphEvent.TxIndex,
 			TxHash:      morphEvent.TxHash.Hex(),

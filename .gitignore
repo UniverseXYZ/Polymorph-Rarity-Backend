@@ -1,6 +1,5 @@
 .env
 .env.dev
 go.sum
-.env
 .env.prod
 rarity-backend

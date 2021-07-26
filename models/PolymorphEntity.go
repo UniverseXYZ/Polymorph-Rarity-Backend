@@ -22,6 +22,8 @@ type PolymorphEntity struct {
 	SecMatchingTraits     []string `json:"secmatchingtraits"`
 	HasCompletedSet       bool     `json:"hascompletedset"`
 	HandsScaler           float64  `json:"handsscaler"`
+	HandsSetName          string   `json:"handssetname"`
+	MatchingHands         int      `json:"matchinghands"`
 	NoColorMismatchScaler float64  `json:"nocolormismatchscaler"`
 	ColorMismatchScaler   float64  `json:"colormismatchscaler"`
 	DegenScaler           float64  `json:"degenscaler"`

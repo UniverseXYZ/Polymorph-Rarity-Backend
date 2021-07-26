@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"rarity-backend/config"
+	"rarity-backend/helpers"
 	"rarity-backend/metadata"
 	"rarity-backend/rarityTypes"
 	"strings"
@@ -27,12 +28,12 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) rarityT
 		}
 	}
 
-	hasCompletedSet, setName, matchingTraitsCount, mainMatchingTraits, secSetname, secMatchingTraits := calculateCompleteSets(rarityAttributes)
+	hasCompletedSet, setName, mainMatchingTraits, secSetname, secMatchingTraits := calculateCompleteSets(rarityAttributes)
 	colorMismatches := getColorMismatches(attributes, setName)
-	correctHandsScaler := getFullSetHandsScaler(hasCompletedSet, setName, leftHand, rightHand)
+	correctHandsScaler, handsSetName, matchingHands := getFullSetHandsScaler(len(mainMatchingTraits), hasCompletedSet, setName, leftHand, rightHand)
 	noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler := getScalers(hasCompletedSet, setName, colorMismatches, isVirgin)
 
-	baseRarity := math.Pow(2, (matchingTraitsCount - (config.MISMATCH_PENALTY * colorMismatches)))
+	baseRarity := math.Pow(2, (float64(len(mainMatchingTraits)) + config.SECONDARY_SET_SCALER*float64(len(secMatchingTraits)) - (config.MISMATCH_PENALTY * colorMismatches)))
 	// (No color mismatches scaler/Color mismatches scaler) * Hands scaler / Degen scaler  ) + Virgin scaler)
 	totalScalars := (noColorMismatchScaler * colorMismatchScaler * correctHandsScaler * degenScaler)
 	scaledRarity := (math.Round((baseRarity * totalScalars * virginScaler * 100)) / 100)
@@ -46,6 +47,8 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) rarityT
 		SecMatchingTraits:     secMatchingTraits,
 		ColorMismatches:       colorMismatches,
 		HandsScaler:           correctHandsScaler,
+		HandsSetName:          handsSetName,
+		MatchingHands:         matchingHands,
 		NoColorMismatchScaler: noColorMismatchScaler,
 		ColorMismatchScaler:   colorMismatchScaler,
 		DegenScaler:           degenScaler,
@@ -96,7 +99,7 @@ func getColorMismatches(attributes []metadata.Attribute, longestSet string) floa
 
 	for _, attr := range attributes {
 		for _, color := range correctSet.Colors {
-			if strings.Contains(attr.Value, color) {
+			if strings.Contains(attr.Value, color) && helpers.StringInSlice(longestSet, attr.Sets) {
 				totalColorsOccurances++
 				colorMap[color]++
 				break
@@ -115,36 +118,55 @@ func getColorMismatches(attributes []metadata.Attribute, longestSet string) floa
 	return colorMismatches
 }
 
-func getFullSetHandsScaler(hasCompletedSet bool, completedSetName string,
-	leftHandAttr metadata.Attribute, rightHandAttr metadata.Attribute) float64 {
-	var matchingHandsCount int
-	for _, curr := range config.HandsMap[completedSetName] {
-		if curr == leftHandAttr.Value || curr == rightHandAttr.Value {
-			matchingHandsCount++
+func getFullSetHandsScaler(matchingTraitsCount int, hasCompletedSet bool, completedSetName string,
+	leftHandAttr metadata.Attribute, rightHandAttr metadata.Attribute) (float64, string, int) {
+	var matchingSetHandsCount int
+	for _, handAttribute := range config.HandsMap[completedSetName] {
+		if handAttribute == leftHandAttr.Value || handAttribute == rightHandAttr.Value {
+			matchingSetHandsCount++
 		}
 	}
-
-	if !hasCompletedSet {
-		if matchingHandsCount == 1 {
-			return config.NO_SET_ONE_MATCHING_HANDS_SCALER
-		} else if matchingHandsCount == 2 && leftHandAttr.Value != rightHandAttr.Value {
-			return config.NO_SET_TWO_MATCHING_HANDS_SCALER
-		} else if matchingHandsCount == 2 && leftHandAttr.Value == rightHandAttr.Value {
-			return config.NO_SET_TWO_SAME_MATCHING_HANDS_SCALER
+	if matchingSetHandsCount == 0 {
+		// Check if they are matching set
+		handMap := make(map[string]int)
+		for _, set := range leftHandAttr.Sets {
+			handMap[set]++
+		}
+		for _, set := range rightHandAttr.Sets {
+			handMap[set]++
+			if handMap[set] == 2 {
+				if leftHandAttr.Value == rightHandAttr.Value {
+					return config.NO_SET_TWO_SAME_MATCHING_HANDS_SCALER, set, handMap[set]
+				} else {
+					return config.NO_SET_TWO_MATCHING_HANDS_SCALER, set, handMap[set]
+				}
+			}
+		}
+	} else if !hasCompletedSet {
+		if matchingSetHandsCount == 1 {
+			return config.INCOMPLETE_SET_ONE_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+		}
+		if matchingSetHandsCount == 2 && leftHandAttr.Value != rightHandAttr.Value {
+			return config.INCOMPLETE_SET_TWO_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+		}
+		if matchingSetHandsCount == 2 && leftHandAttr.Value == rightHandAttr.Value {
+			return config.INCOMPLETE_SET_TWO_SAME_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
 		}
 	} else if hasCompletedSet {
-		if matchingHandsCount == 1 {
-			return config.HAS_SET_ONE_MATCHING_HANDS_SCALER
-		} else if matchingHandsCount == 2 && leftHandAttr.Value != rightHandAttr.Value {
-			return config.HAS_SET_TWO_MATCHING_HANDS_SCALER
-		} else if matchingHandsCount == 2 && leftHandAttr.Value == rightHandAttr.Value {
-			return config.NO_SET_TWO_SAME_MATCHING_HANDS_SCALER
+		if matchingSetHandsCount == 1 {
+			return config.HAS_SET_ONE_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+		}
+		if matchingSetHandsCount == 2 && leftHandAttr.Value != rightHandAttr.Value {
+			return config.HAS_SET_TWO_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+		}
+		if matchingSetHandsCount == 2 && leftHandAttr.Value == rightHandAttr.Value {
+			return config.INCOMPLETE_SET_TWO_SAME_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
 		}
 	}
-	return 1
+	return 1, "", 0
 }
 
-func calculateCompleteSets(attributes []metadata.Attribute) (bool, string, float64, []string, string, []string) {
+func calculateCompleteSets(attributes []metadata.Attribute) (bool, string, []string, string, []string) {
 	var hasCompletedSet bool
 	var mainSet int
 	var mainSetName string
@@ -189,7 +211,7 @@ func calculateCompleteSets(attributes []metadata.Attribute) (bool, string, float
 		mainMatchingTraits, secondaryMatchingTraits = secondaryMatchingTraits, mainMatchingTraits
 	}
 
-	return hasCompletedSet, mainSetName, float64(mainSet), mainMatchingTraits, secondarySetName, secondaryMatchingTraits
+	return hasCompletedSet, mainSetName, mainMatchingTraits, secondarySetName, secondaryMatchingTraits
 }
 
 // TODO: Corn gun and diamond hands are left out

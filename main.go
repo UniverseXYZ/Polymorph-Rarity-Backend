@@ -161,7 +161,7 @@ func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *s
 // 		Sets:      []string{"Ninja", "Samurai", "Spartan", "Knight"},
 // 	},
 // }
-// rarityIndex.CalulateRarityScore(mismatchedSpartanSet)
+// rarityIndex.CalulateRarityScore(mismatchedSpartanSet, false)
 
 // //Rarity: 240
 // matchedKnightSet := []metadata.Attribute{
@@ -442,5 +442,46 @@ func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *s
 // 		},
 // 	}
 
-// 	rarityIndex.CalulateRarityScore(degenSet, false)
+// rarityIndex.CalulateRarityScore(degenSet, false)
+
+// ID:8279
+// degenSet := []metadata.Attribute{
+// 	{
+// 		TraitType: "Eyewear",
+// 		Value:     "Monocle",
+// 		Sets:      []string{"Plaid Suit", "Black Suit", "Brown Suit", "Grey Suit"},
+// 	},
+// 	{
+// 		TraitType: "Footwear",
+// 		Value:     "Silver Knight Boots",
+// 		Sets:      []string{"Knight"},
+// 	},
+// 	{
+// 		TraitType: "Headwear",
+// 		Value:     "Silver Spartan Helmet",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Torso",
+// 		Value:     "Silver Spartan Armor",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Pants",
+// 		Value:     "Golden Grieves",
+// 		Sets:      []string{"Knight"},
+// 	},
+// 	{
+// 		TraitType: "Left Hand",
+// 		Value:     "Golden Spartan Sword",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Right Hand",
+// 		Value:     "Red Degen Sword",
+// 		Sets:      []string{"Party Degen"},
+// 	},
+// }
+
+// rarityIndex.CalulateRarityScore(degenSet, false)
 // }
