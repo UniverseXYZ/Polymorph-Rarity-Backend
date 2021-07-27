@@ -5,36 +5,26 @@ import (
 	"log"
 	"math"
 	"rarity-backend/config"
+	"rarity-backend/constants"
 	"rarity-backend/helpers"
-	"rarity-backend/metadata"
 	"rarity-backend/structs"
 	"strings"
 )
 
-func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) structs.RarityResult {
-	var leftHand, rightHand metadata.Attribute
-	var virginScaler float64 = 1
-	var rarityAttributes []metadata.Attribute
-
-	for _, attr := range attributes {
-		switch attr.TraitType {
-		case "Background", "Character":
-		case "Right Hand":
-			rightHand = attr
-		case "Left Hand":
-			leftHand = attr
-		default:
-			rarityAttributes = append(rarityAttributes, attr)
-		}
-	}
+func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.RarityResult {
+	leftHand, rightHand, rarityAttributes := parseAttributes(attributes)
 
 	hasCompletedSet, setName, mainMatchingTraits, secSetname, secMatchingTraits := calculateCompleteSets(rarityAttributes)
 	colorMismatches := getColorMismatches(attributes, setName)
 	correctHandsScaler, handsSetName, matchingHands := getFullSetHandsScaler(len(mainMatchingTraits), hasCompletedSet, setName, leftHand, rightHand)
 	noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler := getScalers(hasCompletedSet, setName, colorMismatches, isVirgin)
 
-	baseRarity := math.Pow(2, (float64(len(mainMatchingTraits)) + config.SECONDARY_SET_SCALER*float64(len(secMatchingTraits)) - (config.MISMATCH_PENALTY * colorMismatches)))
-	// (No color mismatches scaler/Color mismatches scaler) * Hands scaler / Degen scaler  ) + Virgin scaler)
+	mainSetCount := float64(len(mainMatchingTraits))
+	secSetBonus := config.SECONDARY_SET_SCALER * float64(len(secMatchingTraits))
+	mismatchPenalty := config.MISMATCH_PENALTY * colorMismatches
+
+	baseRarity := math.Pow(2, mainSetCount-mismatchPenalty+secSetBonus)
+
 	totalScalars := noColorMismatchScaler * colorMismatchScaler * correctHandsScaler * degenScaler * virginScaler
 	scaledRarity := math.Round((baseRarity * totalScalars * 100)) / 100
 	log.Println("Rarity index: " + fmt.Sprintf("%f", (scaledRarity)))
@@ -45,7 +35,7 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) structs
 		MainMatchingTraits:    mainMatchingTraits,
 		SecSetName:            secSetname,
 		SecMatchingTraits:     secMatchingTraits,
-		ColorMismatches:       colorMismatches,
+		ColorMismatches:       int(colorMismatches),
 		HandsScaler:           correctHandsScaler,
 		HandsSetName:          handsSetName,
 		MatchingHands:         matchingHands,
@@ -56,6 +46,25 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) structs
 		BaseRarity:            baseRarity,
 		ScaledRarity:          scaledRarity,
 	}
+}
+
+func parseAttributes(attributes []structs.Attribute) (structs.Attribute, structs.Attribute, []structs.Attribute) {
+	var leftHand, rightHand structs.Attribute
+	var rarityAttributes []structs.Attribute
+
+	for _, attr := range attributes {
+		switch attr.TraitType {
+		case constants.MorphAttriutes.Background, constants.MorphAttriutes.Character:
+		case constants.MorphAttriutes.RightHand:
+			rightHand = attr
+		case constants.MorphAttriutes.LeftHand:
+			leftHand = attr
+		default:
+			rarityAttributes = append(rarityAttributes, attr)
+		}
+	}
+
+	return leftHand, rightHand, rarityAttributes
 }
 
 func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, isVirgin bool) (float64, float64, float64, float64) {
@@ -78,18 +87,14 @@ func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, i
 	return noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler
 }
 
-func getColorMismatches(attributes []metadata.Attribute, longestSet string) float64 {
-	footbalSetWithColors := structs.ColorSet{Name: "Football Star", Colors: []string{"Red", "White", "Yellow"}}
-	spartanSetWithColors := structs.ColorSet{Name: "Spartan", Colors: []string{"Platinum", "Silver", "Gold", "Brown"}}
-	knightSetWithColors := structs.ColorSet{Name: "Knight", Colors: []string{"Silver", "Golden"}}
-
+func getColorMismatches(attributes []structs.Attribute, longestSet string) float64 {
 	var correctSet structs.ColorSet
-	if strings.Contains(longestSet, footbalSetWithColors.Name) {
-		correctSet = footbalSetWithColors
-	} else if strings.Contains(longestSet, spartanSetWithColors.Name) {
-		correctSet = spartanSetWithColors
-	} else if strings.Contains(longestSet, knightSetWithColors.Name) {
-		correctSet = knightSetWithColors
+	if strings.Contains(longestSet, config.FootbalSetWithColors.Name) {
+		correctSet = config.FootbalSetWithColors
+	} else if strings.Contains(longestSet, config.SpartanSetWithColors.Name) {
+		correctSet = config.SpartanSetWithColors
+	} else if strings.Contains(longestSet, config.KnightSetWithColors.Name) {
+		correctSet = config.KnightSetWithColors
 	} else {
 		// Set is without colors
 		return 0
@@ -119,7 +124,7 @@ func getColorMismatches(attributes []metadata.Attribute, longestSet string) floa
 }
 
 func getFullSetHandsScaler(matchingTraitsCount int, hasCompletedSet bool, completedSetName string,
-	leftHandAttr metadata.Attribute, rightHandAttr metadata.Attribute) (float64, string, int) {
+	leftHandAttr structs.Attribute, rightHandAttr structs.Attribute) (float64, string, int) {
 	var matchingSetHandsCount int
 	for _, handAttribute := range config.HandsMap[completedSetName] {
 		if handAttribute == leftHandAttr.Value || handAttribute == rightHandAttr.Value {
@@ -166,7 +171,7 @@ func getFullSetHandsScaler(matchingTraitsCount int, hasCompletedSet bool, comple
 	return 1, "", 0
 }
 
-func calculateCompleteSets(attributes []metadata.Attribute) (bool, string, []string, string, []string) {
+func calculateCompleteSets(attributes []structs.Attribute) (bool, string, []string, string, []string) {
 	var hasCompletedSet bool
 	var mainSet int
 	var mainSetName string
@@ -213,5 +218,3 @@ func calculateCompleteSets(attributes []metadata.Attribute) (bool, string, []str
 
 	return hasCompletedSet, mainSetName, mainMatchingTraits, secondarySetName, secondaryMatchingTraits
 }
-
-// TODO: Corn gun and diamond hands are left out

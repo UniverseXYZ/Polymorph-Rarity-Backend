@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"rarity-backend/metadata"
+	"rarity-backend/constants"
 	"rarity-backend/models"
 	"rarity-backend/structs"
 	"sort"
@@ -9,28 +9,28 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func CreateMorphEntity(event structs.PolymorphEvent, attributes []metadata.Attribute, isVirgin bool, rarityResult structs.RarityResult) models.PolymorphEntity {
-	var background, leftHand, rightHand, head, eye, torso, pants, feet, character metadata.Attribute
+func CreateMorphEntity(event structs.PolymorphEvent, attributes []structs.Attribute, isVirgin bool, rarityResult structs.RarityResult) models.PolymorphEntity {
+	var background, leftHand, rightHand, head, eye, torso, pants, feet, character structs.Attribute
 
 	for _, attr := range attributes {
 		switch attr.TraitType {
-		case "Background":
+		case constants.MorphAttriutes.Background:
 			background = attr
-		case "Character":
+		case constants.MorphAttriutes.Character:
 			character = attr
-		case "Right Hand":
+		case constants.MorphAttriutes.RightHand:
 			rightHand = attr
-		case "Left Hand":
+		case constants.MorphAttriutes.LeftHand:
 			leftHand = attr
-		case "Footwear":
+		case constants.MorphAttriutes.Footwear:
 			feet = attr
-		case "Pants":
+		case constants.MorphAttriutes.Pants:
 			pants = attr
-		case "Torso":
+		case constants.MorphAttriutes.Torso:
 			torso = attr
-		case "Eyewear":
+		case constants.MorphAttriutes.Eyewear:
 			eye = attr
-		case "Headwear":
+		case constants.MorphAttriutes.Headwear:
 			head = attr
 		}
 	}
@@ -50,7 +50,7 @@ func CreateMorphEntity(event structs.PolymorphEvent, attributes []metadata.Attri
 		Background:            background.Value,
 		RarityScore:           rarityResult.ScaledRarity,
 		IsVirgin:              isVirgin,
-		ColorMismatches:       int(rarityResult.ColorMismatches),
+		ColorMismatches:       rarityResult.ColorMismatches,
 		MainSetName:           rarityResult.MainSetName,
 		MainMatchingTraits:    rarityResult.MainMatchingTraits,
 		SecSetName:            rarityResult.SecSetName,

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"rarity-backend/constants"
 	"rarity-backend/db"
 	"rarity-backend/models"
 	"strconv"
@@ -30,7 +31,7 @@ func GetLastProcessedBlockNumber(polymorphDBName string, blocksCollectionName st
 		return 0, err
 	}
 
-	lastProcessedBlockNumber := result["number"]
+	lastProcessedBlockNumber := result[constants.BlockFieldNames.Number]
 	block := lastProcessedBlockNumber.(int64)
 	return block, nil
 }
@@ -51,7 +52,7 @@ func CreateOrUpdateLastProcessedBlock(number uint64, polymorphDBName string, blo
 	opts := options.Update().SetUpsert(true)
 
 	objID, _ := primitive.ObjectIDFromHex(strconv.FormatInt(0, 16))
-	filter := bson.M{"_id": objID}
+	filter := bson.M{constants.BlockFieldNames.ObjId: objID}
 
 	_, err = collection.UpdateOne(context.Background(), filter, update, opts)
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"math/big"
-	"rarity-backend/config"
+	"rarity-backend/constants"
 	"rarity-backend/dlt"
 	"rarity-backend/handlers"
 	"rarity-backend/store"
@@ -63,7 +63,7 @@ func saveToEventLogMutex(ethLogs []types.Log, elm *structs.EventLogsMutex, wg *s
 	for _, ethLog := range ethLogs {
 		eventSig := ethLog.Topics[0].String()
 		switch eventSig {
-		case config.TokenMintedSignature, config.TokenMorphedSignature:
+		case constants.MintEvent.Signature, constants.MorphEvent.Signature:
 			elm.EventLogs = append(elm.EventLogs, ethLog)
 		}
 		elm.EventSigs[eventSig]++

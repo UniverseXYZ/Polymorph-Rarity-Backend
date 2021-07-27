@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"math/big"
-	"rarity-backend/config"
+	"rarity-backend/constants"
 	"rarity-backend/dlt"
 	"rarity-backend/handlers"
 	"rarity-backend/helpers"
@@ -35,7 +35,7 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	for _, ethLog := range eventLogsMutex.EventLogs {
 		eventSig := ethLog.Topics[0].String()
 		switch eventSig {
-		case config.TokenMintedSignature:
+		case constants.MintEvent.Signature:
 			wg.Add(1)
 			go processMint(ethLog, &wg, contractAbi, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, &mintsMutex)
 		}
@@ -43,7 +43,7 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 
 	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
-		handlers.InsertManyMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
+		handlers.PersistMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
 	}
 
 	// Sort polymorphs
@@ -52,7 +52,7 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	for _, ethLog := range eventLogsMutex.EventLogs {
 		eventSig := ethLog.Topics[0].String()
 		switch eventSig {
-		case config.TokenMorphedSignature:
+		case constants.MorphEvent.Signature:
 			processInitialMorphs(ethLog, &wg, contractAbi, instance, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, dbInfo.TransactionsCollectionName, txState, genesMap, tokenToMorphEvent)
 		}
 	}
@@ -78,7 +78,7 @@ func processMint(mintEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, c
 	defer wg.Done()
 	var event structs.PolymorphEvent
 	mintsMutex.Mutex.Lock()
-	contractAbi.UnpackIntoInterface(&event, "TokenMinted", mintEvent.Data)
+	contractAbi.UnpackIntoInterface(&event, constants.MintEvent.Name, mintEvent.Data)
 	event.MorphId = mintEvent.Topics[1].Big()
 	event.OldGene = big.NewInt(0)
 	if event.NewGene.String() != "0" && !mintsMutex.TokensMap[event.MorphId.String()] {
@@ -102,7 +102,7 @@ func processMint(mintEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, c
 func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, polymorphDBName string,
 	rarityCollectionName string, transactionsCollectionName string, txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log) {
 	var mEvent structs.MorphedEvent
-	err := contractAbi.UnpackIntoInterface(&mEvent, "TokenMorphed", morphEvent.Data)
+	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -137,7 +137,7 @@ func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi 
 			OldGene: mEvent.OldGene,
 			MorphId: mId,
 		}, metadataJson.Attributes, false, rarityResult)
-		res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
+		res, err := handlers.PersistSinglePolymorph(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -163,7 +163,7 @@ func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi 
 func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, polymorphDBName string,
 	rarityCollectionName string, transactionsCollectionName string, txState map[string]map[uint]bool, oldGenesMap map[string]string) {
 	var mEvent structs.MorphedEvent
-	err := contractAbi.UnpackIntoInterface(&mEvent, "TokenMorphed", morphEvent.Data)
+	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -188,7 +188,7 @@ func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi
 		MorphId: mId,
 	}, metadataJson.Attributes, false, rarityResult)
 
-	res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, oldGenesMap[mId.String()], geneDifferences)
+	res, err := handlers.PersistSinglePolymorph(morphEntity, polymorphDBName, rarityCollectionName, oldGenesMap[mId.String()], geneDifferences)
 	if err != nil {
 		log.Println(err)
 	} else {
@@ -201,7 +201,7 @@ func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi
 func processMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, polymorphDBName string,
 	rarityCollectionName string, transactionsCollectionName string, txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log) {
 	var mEvent structs.MorphedEvent
-	err := contractAbi.UnpackIntoInterface(&mEvent, "TokenMorphed", morphEvent.Data)
+	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -230,7 +230,7 @@ func processMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI
 			OldGene: mEvent.OldGene,
 			MorphId: mId,
 		}, metadataJson.Attributes, false, rarityResult)
-		res, err := handlers.CreateOrUpdatePolymorphEntity(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
+		res, err := handlers.PersistSinglePolymorph(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
 		if err != nil {
 			log.Println(err)
 		} else {

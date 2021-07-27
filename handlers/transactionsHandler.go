@@ -52,6 +52,5 @@ func SaveTransaction(polymorphDBName string, transactionsColl string, transactio
 		log.Fatalln(err)
 	}
 
-	log.Printf("\nInserted new transaction in DB:\ntxHash: %v\nLogIndex: %v", transaction.TxHash, transaction.LogIndex)
-	log.Println()
+	log.Printf("\nInserted new transaction in DB:\ntxHash: %v\nLogIndex: %v\n", transaction.TxHash, transaction.LogIndex)
 }

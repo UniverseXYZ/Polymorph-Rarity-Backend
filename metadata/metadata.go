@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"rarity-backend/constants"
 	"rarity-backend/structs"
 )
 
@@ -22,11 +23,6 @@ const WEAPON_LEFT_GENES_COUNT int = 32
 
 type Genome string
 type Gene int
-type Attribute struct {
-	TraitType string   `json:"trait_type"`
-	Value     string   `json:"value"`
-	Sets      []string `json:"sets"`
-}
 
 func (g Gene) toPath() string {
 	if g < 10 {
@@ -47,11 +43,11 @@ func getWeaponLeftGene(g string) int {
 	return getGeneInt(g, -18, -16, WEAPON_LEFT_GENES_COUNT)
 }
 
-func getWeaponLeftGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getWeaponLeftGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getWeaponLeftGene(g)
 	trait := configService.WeaponLeft[gene]
-	return Attribute{
-		TraitType: "Left Hand",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.LeftHand,
 		Value:     trait.Name,
 		Sets:      trait.Sets,
 	}
@@ -66,11 +62,11 @@ func getWeaponRightGene(g string) int {
 	return getGeneInt(g, -16, -14, WEAPON_RIGHT_GENES_COUNT)
 }
 
-func getWeaponRightGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getWeaponRightGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getWeaponRightGene(g)
 	trait := configService.WeaponRight[gene]
-	return Attribute{
-		TraitType: "Right Hand",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.RightHand,
 		Value:     trait.Name,
 		Sets:      trait.Sets,
 	}
@@ -85,11 +81,11 @@ func getHeadGene(g string) int {
 	return getGeneInt(g, -14, -12, HEAD_GENES_COUNT)
 }
 
-func getHeadGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getHeadGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getHeadGene(g)
 	trait := configService.Headwear[gene]
-	return Attribute{
-		TraitType: "Headwear",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.Headwear,
 		Value:     trait.Name,
 		Sets:      trait.Sets,
 	}
@@ -104,11 +100,11 @@ func getEyewearGene(g string) int {
 	return getGeneInt(g, -12, -10, EYEWEAR_GENES_COUNT)
 }
 
-func getEyewearGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getEyewearGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getEyewearGene(g)
 	trait := configService.Eyewear[gene]
-	return Attribute{
-		TraitType: "Eyewear",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.Eyewear,
 		Value:     trait.Name,
 		Sets:      trait.Sets,
 	}
@@ -123,11 +119,11 @@ func getShoesGene(g string) int {
 	return getGeneInt(g, -10, -8, SHOES_GENES_COUNT)
 }
 
-func getShoesGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getShoesGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getShoesGene(g)
 	trait := configService.Footwear[gene]
-	return Attribute{
-		TraitType: "Footwear",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.Footwear,
 		Value:     trait.Name,
 		Sets:      trait.Sets,
 	}
@@ -142,11 +138,11 @@ func getTorsoGene(g string) int {
 	return getGeneInt(g, -8, -6, TORSO_GENES_COUNT)
 }
 
-func getTorsoGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getTorsoGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getTorsoGene(g)
 	trait := configService.Torso[gene]
-	return Attribute{
-		TraitType: "Torso",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.Torso,
 		Value:     trait.Name,
 		Sets:      trait.Sets,
 	}
@@ -161,11 +157,11 @@ func getPantsGene(g string) int {
 	return getGeneInt(g, -6, -4, PANTS_GENES_COUNT)
 }
 
-func getPantsGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getPantsGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getPantsGene(g)
 	trait := configService.Pants[gene]
-	return Attribute{
-		TraitType: "Pants",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.Pants,
 		Value:     trait.Name,
 		Sets:      trait.Sets,
 	}
@@ -180,10 +176,10 @@ func getBackgroundGene(g string) int {
 	return getGeneInt(g, -4, -2, BACKGROUND_GENE_COUNT)
 }
 
-func getBackgroundGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getBackgroundGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getBackgroundGene(g)
-	return Attribute{
-		TraitType: "Background",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.Background,
 		Value:     configService.Background[gene],
 	}
 }
@@ -197,10 +193,10 @@ func getBaseGene(g string) int {
 	return getGeneInt(g, -2, 0, BASE_GENES_COUNT)
 }
 
-func getBaseGeneAttribute(g string, configService *structs.ConfigService) Attribute {
+func getBaseGeneAttribute(g string, configService *structs.ConfigService) structs.Attribute {
 	gene := getBaseGene(g)
-	return Attribute{
-		TraitType: "Character",
+	return structs.Attribute{
+		TraitType: constants.MorphAttriutes.Character,
 		Value:     configService.Character[gene],
 	}
 }
@@ -240,10 +236,10 @@ func (g *Genome) genes() []string {
 	return res
 }
 
-func (g *Genome) attributes(configService *structs.ConfigService) []Attribute {
+func (g *Genome) attributes(configService *structs.ConfigService) []structs.Attribute {
 	gStr := string(*g)
 
-	res := make([]Attribute, 0, GENES_COUNT)
+	res := make([]structs.Attribute, 0, GENES_COUNT)
 	res = append(res, getBaseGeneAttribute(gStr, configService))
 	res = append(res, getShoesGeneAttribute(gStr, configService))
 	res = append(res, getPantsGeneAttribute(gStr, configService))
@@ -256,19 +252,11 @@ func (g *Genome) attributes(configService *structs.ConfigService) []Attribute {
 	return res
 }
 
-func (g *Genome) Metadata(tokenId string, configService *structs.ConfigService) Metadata {
-	var m Metadata
+func (g *Genome) Metadata(tokenId string, configService *structs.ConfigService) structs.Metadata {
+	var m structs.Metadata
 	m.Attributes = g.attributes(configService)
 	m.Name = g.name(configService, tokenId)
 	m.Description = g.description(configService, tokenId)
 	m.ExternalUrl = fmt.Sprintf("%s%s", EXTERNAL_URL, tokenId)
 	return m
-}
-
-type Metadata struct {
-	Description string      `json:"description"`
-	Name        string      `json:"name"`
-	Image       string      `json:"image"`
-	Attributes  []Attribute `json:"attributes"`
-	ExternalUrl string      `json:"external_url"`
 }

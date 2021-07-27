@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"rarity-backend/config"
+	"rarity-backend/constants"
 	"strconv"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -10,20 +11,20 @@ import (
 
 func ParseSearchQueryString(search string) bson.M {
 	queries := bson.A{}
-	// searchQueryFields := []string{"rank", "tokenid", "mainsetname", "secsetname"}
 
 	for _, field := range config.SEARCH_QUERY_FIELDS {
 		pattern := ""
 		switch field {
-		case "tokenid":
+		case constants.MorphFieldNames.TokenId:
 			pattern = getExactTokenPattern(search)
 			regex := primitive.Regex{Pattern: pattern, Options: "i"}
 			regexFilter := bson.M{"$regex": regex}
 			queries = append(queries, bson.M{field: regexFilter})
-		case "rank":
-			rank, err := strconv.Atoi(search)
+		case constants.MorphFieldNames.Rank,
+			constants.MorphFieldNames.RarityScore:
+			parsed, err := strconv.Atoi(search)
 			if err == nil {
-				queries = append(queries, bson.M{field: rank})
+				queries = append(queries, bson.M{field: parsed})
 			}
 		default:
 			pattern = search
