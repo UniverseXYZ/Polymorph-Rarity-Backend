@@ -8,9 +8,9 @@ import (
 	"rarity-backend/config"
 	"rarity-backend/dlt"
 	"rarity-backend/handlers"
-	"rarity-backend/rarityTypes"
 	"rarity-backend/services"
 	"rarity-backend/store"
+	"rarity-backend/structs"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,7 +34,7 @@ func connectToEthereum() *dlt.EthereumClient {
 	return client
 }
 
-func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *config.ConfigService, rarityTypes.DBInfo) {
+func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *structs.ConfigService, structs.DBInfo) {
 	// Load env variables
 	err := godotenv.Load()
 	if err != nil {
@@ -76,7 +76,7 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *confi
 	}
 
 	configService := config.NewConfigService("./config.json")
-	dbInfo := rarityTypes.DBInfo{
+	dbInfo := structs.DBInfo{
 		PolymorphDBName:            polymorphDBName,
 		RarityCollectionName:       rarityCollectionName,
 		TransactionsCollectionName: transactionsCollectionName,
@@ -112,7 +112,7 @@ func startAPI() {
 	log.Fatal(app.Listen(8000))
 }
 
-func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *config.ConfigService, dbInfo rarityTypes.DBInfo) {
+func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *structs.ConfigService, dbInfo structs.DBInfo) {
 	// Build transactions scramble transaction mapping from db
 	txMap := handlers.GetTransactionsMapping(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
 	// Recover immediately

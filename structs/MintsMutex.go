@@ -1,4 +1,4 @@
-package rarityTypes
+package structs
 
 import (
 	"rarity-backend/models"

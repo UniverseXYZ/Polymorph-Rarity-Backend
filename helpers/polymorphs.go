@@ -3,13 +3,13 @@ package helpers
 import (
 	"rarity-backend/metadata"
 	"rarity-backend/models"
-	"rarity-backend/rarityTypes"
+	"rarity-backend/structs"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func CreateMorphEntity(event rarityTypes.PolymorphEvent, attributes []metadata.Attribute, isVirgin bool, rarityResult rarityTypes.RarityResult) models.PolymorphEntity {
+func CreateMorphEntity(event structs.PolymorphEvent, attributes []metadata.Attribute, isVirgin bool, rarityResult structs.RarityResult) models.PolymorphEntity {
 	var background, leftHand, rightHand, head, eye, torso, pants, feet, character metadata.Attribute
 
 	for _, attr := range attributes {

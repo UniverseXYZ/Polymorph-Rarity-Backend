@@ -5,7 +5,7 @@ func DetectGeneDifferences(oldGene string, newGene string) int {
 	if oldGene == "0" {
 		return 0
 	}
-	// bigInt.String() removes leading zeroes
+	// bigInt.String() removes leading zeroes so we have to recover them
 	if len(oldGene) != len(newGene) {
 		if len(oldGene) < len(newGene) {
 			lenDiff := len(newGene) - len(oldGene)
@@ -20,6 +20,7 @@ func DetectGeneDifferences(oldGene string, newGene string) int {
 
 		}
 	}
+
 	for i := range oldGene {
 		if oldGene[i] != newGene[i] {
 			differences++

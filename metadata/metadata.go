@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"rarity-backend/config"
+	"rarity-backend/structs"
 )
 
 const POLYMORPH_IMAGE_URL string = "https://storage.googleapis.com/polymorph-images/"
@@ -47,7 +47,7 @@ func getWeaponLeftGene(g string) int {
 	return getGeneInt(g, -18, -16, WEAPON_LEFT_GENES_COUNT)
 }
 
-func getWeaponLeftGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getWeaponLeftGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getWeaponLeftGene(g)
 	trait := configService.WeaponLeft[gene]
 	return Attribute{
@@ -66,7 +66,7 @@ func getWeaponRightGene(g string) int {
 	return getGeneInt(g, -16, -14, WEAPON_RIGHT_GENES_COUNT)
 }
 
-func getWeaponRightGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getWeaponRightGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getWeaponRightGene(g)
 	trait := configService.WeaponRight[gene]
 	return Attribute{
@@ -85,7 +85,7 @@ func getHeadGene(g string) int {
 	return getGeneInt(g, -14, -12, HEAD_GENES_COUNT)
 }
 
-func getHeadGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getHeadGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getHeadGene(g)
 	trait := configService.Headwear[gene]
 	return Attribute{
@@ -104,7 +104,7 @@ func getEyewearGene(g string) int {
 	return getGeneInt(g, -12, -10, EYEWEAR_GENES_COUNT)
 }
 
-func getEyewearGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getEyewearGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getEyewearGene(g)
 	trait := configService.Eyewear[gene]
 	return Attribute{
@@ -123,7 +123,7 @@ func getShoesGene(g string) int {
 	return getGeneInt(g, -10, -8, SHOES_GENES_COUNT)
 }
 
-func getShoesGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getShoesGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getShoesGene(g)
 	trait := configService.Footwear[gene]
 	return Attribute{
@@ -142,7 +142,7 @@ func getTorsoGene(g string) int {
 	return getGeneInt(g, -8, -6, TORSO_GENES_COUNT)
 }
 
-func getTorsoGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getTorsoGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getTorsoGene(g)
 	trait := configService.Torso[gene]
 	return Attribute{
@@ -161,7 +161,7 @@ func getPantsGene(g string) int {
 	return getGeneInt(g, -6, -4, PANTS_GENES_COUNT)
 }
 
-func getPantsGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getPantsGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getPantsGene(g)
 	trait := configService.Pants[gene]
 	return Attribute{
@@ -180,7 +180,7 @@ func getBackgroundGene(g string) int {
 	return getGeneInt(g, -4, -2, BACKGROUND_GENE_COUNT)
 }
 
-func getBackgroundGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getBackgroundGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getBackgroundGene(g)
 	return Attribute{
 		TraitType: "Background",
@@ -197,7 +197,7 @@ func getBaseGene(g string) int {
 	return getGeneInt(g, -2, 0, BASE_GENES_COUNT)
 }
 
-func getBaseGeneAttribute(g string, configService *config.ConfigService) Attribute {
+func getBaseGeneAttribute(g string, configService *structs.ConfigService) Attribute {
 	gene := getBaseGene(g)
 	return Attribute{
 		TraitType: "Character",
@@ -210,13 +210,13 @@ func getBaseGenePath(g string) string {
 	return Gene(gene).toPath()
 }
 
-func (g *Genome) name(configService *config.ConfigService, tokenId string) string {
+func (g *Genome) name(configService *structs.ConfigService, tokenId string) string {
 	gStr := string(*g)
 	gene := getBaseGene(gStr)
 	return fmt.Sprintf("%v #%v", configService.Character[gene], tokenId)
 }
 
-func (g *Genome) description(configService *config.ConfigService, tokenId string) string {
+func (g *Genome) description(configService *structs.ConfigService, tokenId string) string {
 	gStr := string(*g)
 	gene := getBaseGene(gStr)
 	return fmt.Sprintf("The %v named %v #%v is a citizen of the Polymorph Universe and has a unique genetic code! You can scramble your Polymorph at anytime.", configService.Type[gene], configService.Character[gene], tokenId)
@@ -240,7 +240,7 @@ func (g *Genome) genes() []string {
 	return res
 }
 
-func (g *Genome) attributes(configService *config.ConfigService) []Attribute {
+func (g *Genome) attributes(configService *structs.ConfigService) []Attribute {
 	gStr := string(*g)
 
 	res := make([]Attribute, 0, GENES_COUNT)
@@ -256,7 +256,7 @@ func (g *Genome) attributes(configService *config.ConfigService) []Attribute {
 	return res
 }
 
-func (g *Genome) Metadata(tokenId string, configService *config.ConfigService) Metadata {
+func (g *Genome) Metadata(tokenId string, configService *structs.ConfigService) Metadata {
 	var m Metadata
 	m.Attributes = g.attributes(configService)
 	m.Name = g.name(configService, tokenId)

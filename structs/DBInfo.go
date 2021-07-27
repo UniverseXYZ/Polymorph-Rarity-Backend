@@ -1,4 +1,4 @@
-package rarityTypes
+package structs
 
 type DBInfo struct {
 	PolymorphDBName            string

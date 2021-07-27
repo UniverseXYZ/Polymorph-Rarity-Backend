@@ -5,7 +5,7 @@ import (
 	"log"
 	"rarity-backend/db"
 	"rarity-backend/models"
-	"rarity-backend/rarityTypes"
+	"rarity-backend/structs"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,7 +14,7 @@ import (
 )
 
 func UpdateRanking(currEntity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string) {
-	ranking := rarityTypes.RankMutex{}
+	ranking := structs.RankMutex{}
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Println(err)
@@ -54,7 +54,7 @@ func UpdateRanking(currEntity models.PolymorphEntity, polymorphDBName string, ra
 }
 
 func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
-	ranking := rarityTypes.RankMutex{}
+	ranking := structs.RankMutex{}
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Println(err)
@@ -86,7 +86,7 @@ func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
 	}
 }
 
-func setRank(entity models.PolymorphEntity, ranking *rarityTypes.RankMutex, wg *sync.WaitGroup) {
+func setRank(entity models.PolymorphEntity, ranking *structs.RankMutex, wg *sync.WaitGroup) {
 	ranking.Mutex.Lock()
 
 	if ranking.PrevRarity != entity.RarityScore {

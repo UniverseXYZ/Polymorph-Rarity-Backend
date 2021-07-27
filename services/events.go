@@ -7,8 +7,8 @@ import (
 	"rarity-backend/config"
 	"rarity-backend/dlt"
 	"rarity-backend/handlers"
-	"rarity-backend/rarityTypes"
 	"rarity-backend/store"
+	"rarity-backend/structs"
 	"sync"
 
 	"github.com/ethereum/go-ethereum"
@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *config.ConfigService, polymorphDBName string, rarityCollectionName string, blocksCollectionName string, startBlock int64, endBlock int64, wg *sync.WaitGroup, elm *rarityTypes.EventLogsMutex) uint64 {
+func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *structs.ConfigService, polymorphDBName string, rarityCollectionName string, blocksCollectionName string, startBlock int64, endBlock int64, wg *sync.WaitGroup, elm *structs.EventLogsMutex) uint64 {
 	var lastProcessedBlockNumber, lastChainBlockNumberInt64 int64
 
 	if startBlock != 0 {
@@ -57,7 +57,7 @@ func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 	return uint64(lastChainBlockNumberInt64)
 }
 
-func saveToEventLogMutex(ethLogs []types.Log, elm *rarityTypes.EventLogsMutex, wg *sync.WaitGroup) {
+func saveToEventLogMutex(ethLogs []types.Log, elm *structs.EventLogsMutex, wg *sync.WaitGroup) {
 	defer wg.Done()
 	elm.Mutex.Lock()
 	for _, ethLog := range ethLogs {

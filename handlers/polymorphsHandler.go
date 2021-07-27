@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"rarity-backend/config"
 	"rarity-backend/db"
+	"rarity-backend/helpers"
 	"rarity-backend/models"
+	"rarity-backend/structs"
 	"strconv"
 
 	"github.com/gofiber/fiber"
@@ -16,8 +19,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-const RESULTS_LIMIT int64 = 10000
 
 func GetPolymorphs(c *fiber.Ctx) {
 	godotenv.Load()
@@ -29,35 +30,57 @@ func GetPolymorphs(c *fiber.Ctx) {
 		return
 	}
 
+	queryParams := structs.QueryParams{}
+	if err := c.QueryParser(&queryParams); err != nil {
+		log.Println(err)
+	}
+	filters := bson.M{}
+	searchFilters := bson.M{}
+
+	if queryParams.Search != "" {
+		searchFilters = helpers.ParseSearchQueryString(queryParams.Search)
+	}
+
+	if queryParams.Filter != "" {
+		filters = helpers.ParseFilterQueryString(queryParams.Filter)
+	}
+	finalFilters := bson.M{}
+	for k, v := range searchFilters {
+		finalFilters[k] = v
+	}
+	for k, v := range filters {
+		finalFilters[k] = v
+	}
 	var findOptions options.FindOptions
 	// TODO: Add select query param for the rest of the params
+	// for _, field := range strings.Split(filter.Select, ",") {
+
+	// }
 	findOptions.SetProjection(bson.M{"_id": 0})
-	take, err := strconv.ParseInt(c.Query("take"), 10, 64)
-	if err != nil || take > RESULTS_LIMIT {
-		take = RESULTS_LIMIT
+	take, err := strconv.ParseInt(queryParams.Take, 10, 64)
+	if err != nil || take > config.RESULTS_LIMIT {
+		take = config.RESULTS_LIMIT
 	}
 	findOptions.SetLimit(take)
 
-	page, err := strconv.ParseInt(c.Query("page"), 10, 64)
+	page, err := strconv.ParseInt(queryParams.Page, 10, 64)
 	if err != nil {
 		page = 1
 	}
 
 	findOptions.SetSkip((page - 1) * take)
 
-	sortField := c.Query("sortField")
-	sortDirQuery := c.Query("sortDir") // desc, asc
 	sortDir := 1
 
-	if sortDirQuery == "desc" {
+	if queryParams.SortDir == "desc" {
 		sortDir = -1
 	}
 
-	if sortField != "" {
-		findOptions.SetSort(bson.D{{sortField, sortDir}})
+	if queryParams.SortField != "" {
+		findOptions.SetSort(bson.D{{queryParams.SortField, sortDir}})
 	}
 
-	curr, err := collection.Find(context.Background(), bson.D{}, &findOptions)
+	curr, err := collection.Find(context.Background(), finalFilters, &findOptions)
 	if err != nil {
 		c.Status(500).Send(err)
 	}
@@ -73,7 +96,7 @@ func GetPolymorphs(c *fiber.Ctx) {
 	curr.All(context.Background(), &results)
 
 	if results == nil {
-		c.SendStatus(404)
+		c.Send(results)
 		return
 	}
 

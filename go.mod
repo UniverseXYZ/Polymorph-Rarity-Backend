@@ -7,6 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.4
 	github.com/gofiber/fiber v1.14.6
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/jasonlvhit/gocron v0.0.1
 	github.com/joho/godotenv v1.3.0
 	github.com/klauspost/compress v1.13.1 // indirect

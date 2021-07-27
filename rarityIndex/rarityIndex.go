@@ -7,11 +7,11 @@ import (
 	"rarity-backend/config"
 	"rarity-backend/helpers"
 	"rarity-backend/metadata"
-	"rarity-backend/rarityTypes"
+	"rarity-backend/structs"
 	"strings"
 )
 
-func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) rarityTypes.RarityResult {
+func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) structs.RarityResult {
 	var leftHand, rightHand metadata.Attribute
 	var virginScaler float64 = 1
 	var rarityAttributes []metadata.Attribute
@@ -35,11 +35,11 @@ func CalulateRarityScore(attributes []metadata.Attribute, isVirgin bool) rarityT
 
 	baseRarity := math.Pow(2, (float64(len(mainMatchingTraits)) + config.SECONDARY_SET_SCALER*float64(len(secMatchingTraits)) - (config.MISMATCH_PENALTY * colorMismatches)))
 	// (No color mismatches scaler/Color mismatches scaler) * Hands scaler / Degen scaler  ) + Virgin scaler)
-	totalScalars := (noColorMismatchScaler * colorMismatchScaler * correctHandsScaler * degenScaler)
-	scaledRarity := (math.Round((baseRarity * totalScalars * virginScaler * 100)) / 100)
+	totalScalars := noColorMismatchScaler * colorMismatchScaler * correctHandsScaler * degenScaler * virginScaler
+	scaledRarity := math.Round((baseRarity * totalScalars * 100)) / 100
 	log.Println("Rarity index: " + fmt.Sprintf("%f", (scaledRarity)))
 
-	return rarityTypes.RarityResult{
+	return structs.RarityResult{
 		HasCompletedSet:       hasCompletedSet,
 		MainSetName:           setName,
 		MainMatchingTraits:    mainMatchingTraits,
@@ -79,11 +79,11 @@ func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, i
 }
 
 func getColorMismatches(attributes []metadata.Attribute, longestSet string) float64 {
-	footbalSetWithColors := config.SetWithColors{Name: "Football Star", Colors: []string{"Red", "White", "Yellow"}}
-	spartanSetWithColors := config.SetWithColors{Name: "Spartan", Colors: []string{"Platinum", "Silver", "Gold", "Brown"}}
-	knightSetWithColors := config.SetWithColors{Name: "Knight", Colors: []string{"Silver", "Golden"}}
+	footbalSetWithColors := structs.ColorSet{Name: "Football Star", Colors: []string{"Red", "White", "Yellow"}}
+	spartanSetWithColors := structs.ColorSet{Name: "Spartan", Colors: []string{"Platinum", "Silver", "Gold", "Brown"}}
+	knightSetWithColors := structs.ColorSet{Name: "Knight", Colors: []string{"Silver", "Golden"}}
 
-	var correctSet config.SetWithColors
+	var correctSet structs.ColorSet
 	if strings.Contains(longestSet, footbalSetWithColors.Name) {
 		correctSet = footbalSetWithColors
 	} else if strings.Contains(longestSet, spartanSetWithColors.Name) {
