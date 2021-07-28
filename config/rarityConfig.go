@@ -2,6 +2,8 @@ package config
 
 import "rarity-backend/structs"
 
+var SCRAMBLE_COST float32 = 0.01
+
 var NO_COLOR_MISMATCH_SCALER float64 = 3
 var COLOR_MISMATCH_SCALER float64 = 1.5
 var DEGEN_SCALER float64 = 0.5

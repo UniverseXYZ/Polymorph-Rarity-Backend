@@ -136,13 +136,13 @@ func GetPolymorphById(c *fiber.Ctx) {
 }
 
 func removePrivateFields(findOptions *options.FindOptions) {
-	for _, field := range config.NO_PROJECTION_FIELDS {
+	for _, field := range config.MORPHS_NO_PROJECTION_FIELDS {
 		findOptions.SetProjection(bson.M{field: 0})
 	}
 }
 
 func removePrivateFieldsSingle(findOptions *options.FindOneOptions) {
-	for _, field := range config.NO_PROJECTION_FIELDS {
+	for _, field := range config.MORPHS_NO_PROJECTION_FIELDS {
 		findOptions.SetProjection(bson.M{field: 0})
 	}
 }

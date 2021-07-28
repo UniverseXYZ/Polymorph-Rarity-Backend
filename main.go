@@ -48,6 +48,8 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *struc
 	blocksCollectionName := os.Getenv("BLOCKS_COLLECTION")
 	contractAddress := os.Getenv("CONTRACT_ADDRESS")
 	transactionsCollectionName := os.Getenv("TRANSACTIONS_COLLECTION")
+	historyCollectionName := os.Getenv("HISTORY_COLLECTION")
+	morphCostCollectionName := os.Getenv("MORPH_COST_COLLECTION")
 
 	if contractAddress == "" {
 		log.Fatal("Missing contract address in .env")
@@ -63,6 +65,12 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *struc
 	}
 	if transactionsCollectionName == "" {
 		log.Fatal("Missing transactions collection name in .env")
+	}
+	if historyCollectionName == "" {
+		log.Fatal("Missing morph history collection name in .env")
+	}
+	if morphCostCollectionName == "" {
+		log.Fatal("Missing morph cost collection name in .env")
 	}
 
 	contractAbi, err := abi.JSON(strings.NewReader(string(store.StoreABI)))
@@ -81,6 +89,8 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *struc
 		RarityCollectionName:       rarityCollectionName,
 		TransactionsCollectionName: transactionsCollectionName,
 		BlocksCollectionName:       blocksCollectionName,
+		HistoryCollectionName:      historyCollectionName,
+		MorphCostCollectionName:    morphCostCollectionName,
 	}
 	return ethClient, contractAbi, instance, contractAddress, configService, dbInfo
 }
@@ -108,17 +118,19 @@ func startAPI() {
 	// Routine two: API -> Should start after deploy?
 	app := fiber.New()
 	app.Get("/morphs/", handlers.GetPolymorphs)
-	app.Get("/morphs/:id?", handlers.GetPolymorphById)
+	app.Get("/morphs/:id", handlers.GetPolymorphById)
+	app.Get("/morphs/history/:id", handlers.GetPolymorphHistory)
 	log.Fatal(app.Listen(8000))
 }
 
 func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *structs.ConfigService, dbInfo structs.DBInfo) {
 	// Build transactions scramble transaction mapping from db
 	txMap := handlers.GetTransactionsMapping(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
+	morphCostMap := handlers.GetMorphPriceMapping(dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
 	// Recover immediately
-	services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap)
+	services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
 	// Routine one: Start polling after recovery
-	gocron.Every(15).Second().Do(services.RecoverProcess, ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap)
+	gocron.Every(15).Second().Do(services.RecoverProcess, ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
 	<-gocron.Start()
 }
 

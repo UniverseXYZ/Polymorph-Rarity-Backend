@@ -5,4 +5,6 @@ type DBInfo struct {
 	RarityCollectionName       string
 	TransactionsCollectionName string
 	BlocksCollectionName       string
+	HistoryCollectionName      string
+	MorphCostCollectionName    string
 }

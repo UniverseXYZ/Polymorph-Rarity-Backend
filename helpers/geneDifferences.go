@@ -1,9 +1,11 @@
 package helpers
 
-func DetectGeneDifferences(oldGene string, newGene string) int {
-	var differences int
+func DetectGeneDifferences(oldGene string, newGene string) (int, int) {
+	oldGene = ReverseString(oldGene)
+	newGene = ReverseString(newGene)
+	var differences, geneIndex int
 	if oldGene == "0" {
-		return 0
+		return 0, 0
 	}
 	// bigInt.String() removes leading zeroes so we have to recover them
 	if len(oldGene) != len(newGene) {
@@ -24,8 +26,11 @@ func DetectGeneDifferences(oldGene string, newGene string) int {
 	for i := range oldGene {
 		if oldGene[i] != newGene[i] {
 			differences++
+			geneIndex = i
 		}
 	}
 
-	return differences
+	// geneIndex = geneIndex - differences
+
+	return geneIndex, differences
 }

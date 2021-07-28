@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"math/big"
@@ -21,7 +22,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *structs.ConfigService, dbInfo structs.DBInfo, txState map[string]map[uint]bool) {
+func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *structs.ConfigService,
+	dbInfo structs.DBInfo, txState map[string]map[uint]bool, morphCostMap map[string]float32) {
 	var wg sync.WaitGroup
 	mintsMutex := structs.MintsMutex{TokensMap: make(map[string]bool)}
 	eventLogsMutex := structs.EventLogsMutex{EventSigs: make(map[string]int), EventLogs: []types.Log{}}
@@ -53,14 +55,14 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 		eventSig := ethLog.Topics[0].String()
 		switch eventSig {
 		case constants.MorphEvent.Signature:
-			processInitialMorphs(ethLog, &wg, contractAbi, instance, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, dbInfo.TransactionsCollectionName, txState, genesMap, tokenToMorphEvent)
+			processInitialMorphs(ethLog, ethClient, contractAbi, instance, configService, dbInfo, txState, genesMap, tokenToMorphEvent, morphCostMap)
 		}
 	}
 
 	// Persist final scrambles
 	for id := range genesMap {
 		ethLog := tokenToMorphEvent[id]
-		processLeftoverMorphs(ethLog, &wg, contractAbi, instance, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, dbInfo.TransactionsCollectionName, txState, genesMap)
+		processLeftoverMorphs(ethLog, ethClient, contractAbi, instance, configService, dbInfo, txState, genesMap, morphCostMap)
 	}
 
 	// Persist Ranking
@@ -99,8 +101,8 @@ func processMint(mintEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, c
 	mintsMutex.Mutex.Unlock()
 }
 
-func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, polymorphDBName string,
-	rarityCollectionName string, transactionsCollectionName string, txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log) {
+func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, dbInfo structs.DBInfo,
+	txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log, morphCostMap map[string]float32) {
 	var mEvent structs.MorphedEvent
 	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
 	if err != nil {
@@ -121,10 +123,22 @@ func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi 
 			log.Println(err)
 		}
 		mEvent.NewGene = result
-		var geneDifferences int
+		var geneDifferences, geneIdx int
+		newAttr, oldAttr := structs.Attribute{}, structs.Attribute{}
 		if oldGenesMap[mId.String()] != "" {
-			geneDifferences = helpers.DetectGeneDifferences(oldGenesMap[mId.String()], mEvent.OldGene.String())
+			geneIdx, geneDifferences = helpers.DetectGeneDifferences(oldGenesMap[mId.String()], mEvent.OldGene.String())
+			if geneDifferences <= 2 {
+				newAttr, oldAttr = helpers.GetAttribute(mEvent.OldGene.String(), oldGenesMap[mId.String()], geneIdx, configService)
+			}
+			block, err := ethClient.Client.BlockByNumber(context.Background(), big.NewInt(int64(morphEvent.BlockNumber)))
+			if err != nil {
+				log.Println(err)
+			}
+			polySnapshot := helpers.CreateMorphSnapshot(geneDifferences, mId.String(), mEvent.OldGene.String(), oldGenesMap[mId.String()], block.Time(), oldAttr, newAttr, morphCostMap, configService)
+			go handlers.SavePolymorphHistory(polySnapshot, dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
+			go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
 		}
+		toSaveGene := oldGenesMap[mId.String()]
 		oldGenesMap[mId.String()] = mEvent.OldGene.String()
 		tokenToMorphEvent[mId.String()] = morphEvent
 
@@ -132,12 +146,9 @@ func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi 
 		metadataJson := (&g).Metadata(mId.String(), configService)
 
 		rarityResult := rarityIndex.CalulateRarityScore(metadataJson.Attributes, false)
-		morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{
-			NewGene: mEvent.NewGene,
-			OldGene: mEvent.OldGene,
-			MorphId: mId,
-		}, metadataJson.Attributes, false, rarityResult)
-		res, err := handlers.PersistSinglePolymorph(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
+		morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, OldGene: mEvent.OldGene, MorphId: mId}, metadataJson.Attributes, false, rarityResult)
+
+		res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, toSaveGene, geneDifferences)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -149,7 +160,7 @@ func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi 
 			txState[morphEvent.TxHash.Hex()] = txMap
 		}
 		txState[morphEvent.TxHash.Hex()][morphEvent.Index] = true
-		go handlers.SaveTransaction(polymorphDBName, transactionsCollectionName, models.Transaction{
+		go handlers.SaveTransaction(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName, models.Transaction{
 			BlockNumber: morphEvent.BlockNumber,
 			TxIndex:     morphEvent.TxIndex,
 			TxHash:      morphEvent.TxHash.Hex(),
@@ -160,8 +171,8 @@ func processInitialMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi 
 	}
 }
 
-func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, polymorphDBName string,
-	rarityCollectionName string, transactionsCollectionName string, txState map[string]map[uint]bool, oldGenesMap map[string]string) {
+func processLeftoverMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, dbInfo structs.DBInfo,
+	txState map[string]map[uint]bool, oldGenesMap map[string]string, morphCostMap map[string]float32) {
 	var mEvent structs.MorphedEvent
 	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
 	if err != nil {
@@ -177,18 +188,26 @@ func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi
 	}
 	mEvent.NewGene = result
 
-	geneDifferences := helpers.DetectGeneDifferences(oldGenesMap[mId.String()], mEvent.NewGene.String())
+	newAttr, oldAttr := structs.Attribute{}, structs.Attribute{}
+	geneIdx, geneDifferences := helpers.DetectGeneDifferences(oldGenesMap[mId.String()], mEvent.NewGene.String())
+	if geneDifferences <= 2 {
+		newAttr, oldAttr = helpers.GetAttribute(mEvent.NewGene.String(), oldGenesMap[mId.String()], geneIdx, configService)
+	}
+	block, err := ethClient.Client.HeaderByNumber(context.Background(), big.NewInt(int64(morphEvent.BlockNumber)))
+	if err != nil {
+		log.Println(err)
+	}
+	polySnapshot := helpers.CreateMorphSnapshot(geneDifferences, mId.String(), mEvent.NewGene.String(), oldGenesMap[mId.String()], block.Time, oldAttr, newAttr, morphCostMap, configService)
+	go handlers.SavePolymorphHistory(polySnapshot, dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
+	go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
 
 	g := metadata.Genome(mEvent.NewGene.String())
 	metadataJson := (&g).Metadata(mId.String(), configService)
 
 	rarityResult := rarityIndex.CalulateRarityScore(metadataJson.Attributes, false)
-	morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{
-		NewGene: mEvent.NewGene,
-		MorphId: mId,
-	}, metadataJson.Attributes, false, rarityResult)
+	morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, MorphId: mId}, metadataJson.Attributes, false, rarityResult)
 
-	res, err := handlers.PersistSinglePolymorph(morphEntity, polymorphDBName, rarityCollectionName, oldGenesMap[mId.String()], geneDifferences)
+	res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, oldGenesMap[mId.String()], geneDifferences)
 	if err != nil {
 		log.Println(err)
 	} else {
@@ -198,57 +217,57 @@ func processLeftoverMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi
 
 // NOT BEING USED CURRENTLY
 // This should be only used when you are GUARANTEED that there will be no more than one event for a single polymorph in each poll -> It writes incorrect data when there are > 1
-func processMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, polymorphDBName string,
-	rarityCollectionName string, transactionsCollectionName string, txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log) {
-	var mEvent structs.MorphedEvent
-	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
-	if err != nil {
-		log.Fatalln(err)
-	}
+// func processMorphs(morphEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, polymorphDBName string,
+// 	rarityCollectionName string, transactionsCollectionName string, txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log) {
+// 	var mEvent structs.MorphedEvent
+// 	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
+// 	if err != nil {
+// 		log.Fatalln(err)
+// 	}
 
-	// 1 is Morph event
-	txMap, hasTxMap := txState[morphEvent.TxHash.Hex()]
-	if mEvent.EventType == 1 && (!hasTxMap || !txMap[morphEvent.Index]) {
-		log.Println()
-		log.Printf("\nBlock Num: %v\nTxIndex: %v\nEventIndex:%v\n", morphEvent.BlockNumber, morphEvent.TxIndex, morphEvent.Index)
+// 	// 1 is Morph event
+// 	txMap, hasTxMap := txState[morphEvent.TxHash.Hex()]
+// 	if mEvent.EventType == 1 && (!hasTxMap || !txMap[morphEvent.Index]) {
+// 		log.Println()
+// 		log.Printf("\nBlock Num: %v\nTxIndex: %v\nEventIndex:%v\n", morphEvent.BlockNumber, morphEvent.TxIndex, morphEvent.Index)
 
-		mId := morphEvent.Topics[1].Big()
-		// This will get the newest gene
-		result, err := instance.GeneOf(&bind.CallOpts{}, mId)
-		if err != nil {
-			log.Println(err)
-		}
-		mEvent.NewGene = result
-		geneDifferences := helpers.DetectGeneDifferences(mEvent.OldGene.String(), mEvent.NewGene.String())
+// 		mId := morphEvent.Topics[1].Big()
+// 		// This will get the newest gene
+// 		result, err := instance.GeneOf(&bind.CallOpts{}, mId)
+// 		if err != nil {
+// 			log.Println(err)
+// 		}
+// 		mEvent.NewGene = result
+// 		geneDifferences := helpers.DetectGeneDifferences(mEvent.OldGene.String(), mEvent.NewGene.String())
 
-		g := metadata.Genome(mEvent.NewGene.String())
-		metadataJson := (&g).Metadata(mId.String(), configService)
+// 		g := metadata.Genome(mEvent.NewGene.String())
+// 		metadataJson := (&g).Metadata(mId.String(), configService)
 
-		rarityResult := rarityIndex.CalulateRarityScore(metadataJson.Attributes, false)
-		morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{
-			NewGene: mEvent.NewGene,
-			OldGene: mEvent.OldGene,
-			MorphId: mId,
-		}, metadataJson.Attributes, false, rarityResult)
-		res, err := handlers.PersistSinglePolymorph(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Println(res)
-		}
+// 		rarityResult := rarityIndex.CalulateRarityScore(metadataJson.Attributes, false)
+// 		morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{
+// 			NewGene: mEvent.NewGene,
+// 			OldGene: mEvent.OldGene,
+// 			MorphId: mId,
+// 		}, metadataJson.Attributes, false, rarityResult)
+// 		res, err := handlers.PersistSinglePolymorph(morphEntity, polymorphDBName, rarityCollectionName, mEvent.OldGene.String(), geneDifferences)
+// 		if err != nil {
+// 			log.Println(err)
+// 		} else {
+// 			log.Println(res)
+// 		}
 
-		if !hasTxMap {
-			txMap = make(map[uint]bool)
-			txState[morphEvent.TxHash.Hex()] = txMap
-		}
-		txState[morphEvent.TxHash.Hex()][morphEvent.Index] = true
-		go handlers.SaveTransaction(polymorphDBName, transactionsCollectionName, models.Transaction{
-			BlockNumber: morphEvent.BlockNumber,
-			TxIndex:     morphEvent.TxIndex,
-			TxHash:      morphEvent.TxHash.Hex(),
-			LogIndex:    morphEvent.Index,
-		})
-	} else if txMap[morphEvent.Index] {
-		log.Println("Already processed morph event! Skipping...")
-	}
-}
+// 		if !hasTxMap {
+// 			txMap = make(map[uint]bool)
+// 			txState[morphEvent.TxHash.Hex()] = txMap
+// 		}
+// 		txState[morphEvent.TxHash.Hex()][morphEvent.Index] = true
+// 		go handlers.SaveTransaction(polymorphDBName, transactionsCollectionName, models.Transaction{
+// 			BlockNumber: morphEvent.BlockNumber,
+// 			TxIndex:     morphEvent.TxIndex,
+// 			TxHash:      morphEvent.TxHash.Hex(),
+// 			LogIndex:    morphEvent.Index,
+// 		})
+// 	} else if txMap[morphEvent.Index] {
+// 		log.Println("Already processed morph event! Skipping...")
+// 	}
+// }

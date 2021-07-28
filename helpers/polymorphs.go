@@ -1,10 +1,14 @@
 package helpers
 
 import (
+	"rarity-backend/config"
 	"rarity-backend/constants"
+	"rarity-backend/metadata"
 	"rarity-backend/models"
 	"rarity-backend/structs"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -72,6 +76,54 @@ func CreateMorphEntity(event structs.PolymorphEvent, attributes []structs.Attrib
 		morphEntity.MainMatchingTraits = []string{}
 	}
 	return morphEntity
+}
+
+func CreateMorphSnapshot(geneDiff int, tokenId string, newGene string, oldGene string, timestamp uint64, oldAttr structs.Attribute, newAttr structs.Attribute, morphCostMap map[string]float32, configService *structs.ConfigService) models.PolymorphHistory {
+	changeType, newAttrbiute, oldAttrubte := "", "", ""
+	var newMorphCost float32 = 0
+	morphCost := morphCostMap[tokenId]
+
+	if morphCost == 0 {
+		morphCost = config.SCRAMBLE_COST
+	}
+
+	if geneDiff <= 2 {
+		changeType = "Morph"
+		newAttrbiute = newAttr.Value
+		oldAttrubte = oldAttr.Value
+		newMorphCost = morphCost * 2
+	} else {
+		changeType = "Scramble"
+		newAttrbiute = ""
+		oldAttrubte = ""
+		newMorphCost = config.SCRAMBLE_COST
+	}
+	morphCostMap[tokenId] = newMorphCost
+	g := metadata.Genome(newGene)
+	character := metadata.GetBaseGeneAttribute(newGene, configService)
+	genes := g.Genes()
+	imageUrl := strings.Builder{}
+	imageUrl.WriteString(constants.POLYMORPH_IMAGE_URL)
+
+	for _, gene := range genes {
+		imageUrl.WriteString(gene)
+	}
+
+	imageUrl.WriteString(".jpg")
+
+	return models.PolymorphHistory{
+		TokenId:           tokenId,
+		Type:              changeType,
+		DateTime:          time.Unix(int64(timestamp), 0).UTC(),
+		AttributeChanged:  oldAttr.TraitType,
+		PreviousAttribute: oldAttrubte,
+		NewAttribute:      newAttrbiute,
+		Price:             morphCost,
+		ImageURL:          imageUrl.String(),
+		NewGene:           newGene,
+		OldGene:           oldGene,
+		Character:         character.Value,
+	}
 }
 
 func SortMorphEvents(eventLogs []types.Log) {

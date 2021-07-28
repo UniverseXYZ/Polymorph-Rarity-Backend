@@ -42,7 +42,6 @@ func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 		ToBlock:   big.NewInt(lastChainBlockNumberInt64),
 		Addresses: []common.Address{common.HexToAddress(address)},
 	})
-
 	if err != nil {
 		log.Println(err)
 		middle := (lastProcessedBlockNumber + lastChainBlockNumberInt64) / 2

@@ -18,7 +18,7 @@ var SEARCH_QUERY_FIELDS []string = []string{
 	constants.MorphFieldNames.SecSetName,
 }
 
-var NO_PROJECTION_FIELDS []string = []string{
+var MORPHS_NO_PROJECTION_FIELDS []string = []string{
 	constants.MorphFieldNames.ObjId,
 	constants.MorphFieldNames.OldGenes,
 	constants.MorphFieldNames.Character,
