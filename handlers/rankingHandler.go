@@ -14,6 +14,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// UpdateAllRanking fetches all polymorph from the database and calculates the ranks.
+//
+// After the ranking is done, the changes to ranks are persisted in the database.
 func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
 	ranking := structs.RankMutex{}
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
@@ -47,6 +50,10 @@ func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
 	}
 }
 
+// setRank computes if there should be a change in the current polymorph's rank.
+// If there's a change we concurrently prepare an update operation and append it to the update operations array
+//
+// Mutes and WaitGroup are used to prevent race conditions
 func setRank(entity models.PolymorphEntity, ranking *structs.RankMutex, wg *sync.WaitGroup) {
 	ranking.Mutex.Lock()
 

@@ -26,7 +26,7 @@
 		"X-YZ"
 	],
 	"footwear": [
-		{"name": "No shoes", "sets": ["Naked"]},
+		{"name": "No shoes", "sets": ["Naked", "Taekwondo", "Zombie Rags"]},
 		{"name": "Amish Shoes", "sets": ["Amish"]},
 		{"name": "Astronaut Footwear", "sets": ["Astronaut"]},
 		{"name": "Basketball Shoes", "sets": ["Basketball"]},
@@ -124,7 +124,7 @@
 		{"name": "White Football Jersey", "sets": ["Football Star"]}
 	],
 	"eyewear": [
-		{"name": "No Eyewear", "sets": ["Naked"]},
+		{"name": "No Eyewear", "sets": ["Naked", "Amish", "Soccer Argentina", "Astronaut", "Party Degen", "Ninja", "Hockey", "Soccer Brazil", "Clown", "Grey Suit", "Marine", "Spartan", "Knight", "Rainbow", "Basketball", "Golf", "Football Star", "Zombie Rags", "Samurai", "Striped Soccer","Sushi Chef","Taekwondo","Tennis","Stoner"]},
 		{"name": "3D Glasses", "sets": []},
 		{"name": "Bar Shades", "sets": []},
 		{"name": "Eye Paint", "sets": []},
@@ -139,7 +139,7 @@
 		{"name": "VR set", "sets": []}
 	],
 	"headwear": [
-		{"name": "No Headwear", "sets": ["Naked"]},
+		{"name": "No Headwear", "sets": ["Naked", "Soccer Argentina", "Party Degen", "Hockey", "Soccer Brazil", "Grey Suit", "Basketball", "Zombie Rags", "Samurai", "Striped Soccer","Taekwondo", "Tennis", "Stoner","Chemical","Plaid Suit","Black Suit","Brown Suit"]},
 		{"name": "Amish Hat", "sets": ["Amish"]},
 		{"name": "Astronnaut Helmet", "sets": ["Astronaut"]},
 		{"name": "Party Hat", "sets": []},

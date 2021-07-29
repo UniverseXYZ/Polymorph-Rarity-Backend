@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// CreateMorphEntity creates an entity which will be save in the rarities collection
 func CreateMorphEntity(event structs.PolymorphEvent, attributes []structs.Attribute, isVirgin bool, rarityResult structs.RarityResult) models.PolymorphEntity {
 	var background, leftHand, rightHand, head, eye, torso, pants, feet, character structs.Attribute
 
@@ -78,6 +79,10 @@ func CreateMorphEntity(event structs.PolymorphEvent, attributes []structs.Attrib
 	return morphEntity
 }
 
+// CreateMorphSnapshot uses all the parameters in order to create a history snapshot of the polymorph. The morph cost mapping is updated depending on the morph type: Morph/Scramble.
+//
+//
+// This snapshot is used to show the different variations each polymorph has gone through in the front end.
 func CreateMorphSnapshot(geneDiff int, tokenId string, newGene string, oldGene string, timestamp uint64, oldAttr structs.Attribute, newAttr structs.Attribute, morphCostMap map[string]float32, configService *structs.ConfigService) models.PolymorphHistory {
 	changeType, newAttrbiute, oldAttrubte := "", "", ""
 	var newMorphCost float32 = 0
@@ -126,6 +131,10 @@ func CreateMorphSnapshot(geneDiff int, tokenId string, newGene string, oldGene s
 	}
 }
 
+// SortMorphEvents sorts moprh events in chronological order(Block number -> Tx Index -> Log Index)
+//
+// If morph events aren't processed chronologically - the history snapshot of each morph event can have false information.
+// We need the correct old state in order to calculate the correct differences in the gene
 func SortMorphEvents(eventLogs []types.Log) {
 	sort.Slice(eventLogs, func(i, j int) bool {
 		curr := eventLogs[i]

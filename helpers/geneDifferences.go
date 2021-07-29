@@ -1,5 +1,8 @@
 package helpers
 
+// DetectGeneDifferences compares two gene string and identifies the number of differences and the index of the differences.
+//
+// The difference index is later used in GetAttribute to calculate which attribute has changed
 func DetectGeneDifferences(oldGene string, newGene string) (int, int) {
 	oldGene = ReverseString(oldGene)
 	newGene = ReverseString(newGene)
@@ -29,8 +32,6 @@ func DetectGeneDifferences(oldGene string, newGene string) (int, int) {
 			geneIndex = i
 		}
 	}
-
-	// geneIndex = geneIndex - differences
 
 	return geneIndex, differences
 }

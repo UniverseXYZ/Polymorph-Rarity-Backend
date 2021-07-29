@@ -9,5 +9,4 @@ import (
 type EventLogsMutex struct {
 	Mutex     sync.Mutex
 	EventLogs []types.Log
-	EventSigs map[string]int
 }

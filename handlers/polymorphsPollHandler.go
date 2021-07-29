@@ -13,6 +13,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// PersistSinglePolymorph persists the polymorph entity in the rarities collection.
+//
+// Depending on the number of gene differences either the scramble or morph fields will be incremented.
+// The old gene will also be appended to the oldGenes field. It's currently used to manually verify if the persisted entities and history snapshot are accurate
 func PersistSinglePolymorph(entity models.PolymorphEntity, polymorphDBName string, rarityCollectionName string, oldGene string, geneDiff int) (string, error) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
@@ -45,6 +49,9 @@ func PersistSinglePolymorph(entity models.PolymorphEntity, polymorphDBName strin
 	}
 }
 
+// PersistMultiplePolymorphs persists multiple changed polymorph entities in one go.
+//
+// Bulk writing to database saves a lot of time
 func PersistMultiplePolymorphs(operations []mongo.WriteModel, polymorphDBName string, rarityCollectionName string) error {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
@@ -57,10 +64,13 @@ func PersistMultiplePolymorphs(operations []mongo.WriteModel, polymorphDBName st
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Updated %v entities' rank in polymorph db", res.ModifiedCount)
+	log.Println(fmt.Sprintf("Updated %v entities' rank in polymorph db", res.ModifiedCount))
 	return nil
 }
 
+// PersistMintEvents persists all the processed mints in the database in one go.
+//
+// Bulk writing to database saves a lot of time
 func PersistMintEvents(bsonDocs []interface{}, polymorphDBName string, rarityCollectionName string) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
@@ -71,5 +81,5 @@ func PersistMintEvents(bsonDocs []interface{}, polymorphDBName string, rarityCol
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Inserted %v polymorphs in DB", len(res.InsertedIDs))
+	log.Println(fmt.Sprintf("Inserted %v polymorphs in DB", len(res.InsertedIDs)))
 }

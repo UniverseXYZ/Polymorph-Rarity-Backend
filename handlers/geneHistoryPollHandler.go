@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// SavePolymorphHistory persists the polymorph history snapshot to the database.
 func SavePolymorphHistory(entity models.PolymorphHistory, polymorphDBName string, historyCollectionName string) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, historyCollectionName)
 

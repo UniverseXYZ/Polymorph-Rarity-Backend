@@ -22,6 +22,26 @@ type Expression struct {
 	Value2    string
 }
 
+// ParseFilterQueryString accepts a special syntax string and tries to parse it to a mongo db filter query
+//
+// The syntax can accept many expressions separated with the expSeparator.
+//
+// Each part of the expression is separated by the paramSeparator
+// Each expresion can be short and long one
+//
+// Short expressions consist of 3 parts: field, operator, value
+//
+// Example: mainsetname_eq_Spartan
+//
+// Long expressions consist of 6 parts: field, operator, value, join operator, operator 2, value 2
+//
+// Example: rarityscore_gte_10.2_and_lte_12.4
+//
+// Supported fields: any field from contants.PolymorphFields.go
+//
+// Supported operators: eq, lt, lte, gt, gte
+//
+// Supported join operators: and, or
 func ParseFilterQueryString(filter string) bson.M {
 	// rarityscore_gte_10.2_and_lte_12.4;mainsetname_eq_Spartan;isvirgin_eq_false
 	expressions := strings.Split(filter, paramSeparator)
@@ -56,6 +76,7 @@ func ParseFilterQueryString(filter string) bson.M {
 	return filters
 }
 
+// buildFilter iterates over each parsed expression, parses it, creates a mongodb query and appends it to global filter query
 func buildFilter(expressions []Expression) bson.M {
 	filter := bson.M{}
 	for _, exp := range expressions {
@@ -86,24 +107,7 @@ func buildFilter(expressions []Expression) bson.M {
 	return filter
 }
 
-func createAndEqBson(field string, value string, existingFilter interface{}) bson.A {
-	bson1 := bson.M{}
-	bson2 := bson.M{}
-	if value == "true" || value == "false" {
-		boolValue, err := strconv.ParseBool(value)
-		if err != nil {
-			log.Println(err)
-		} else {
-			bson1[field] = boolValue
-		}
-	} else {
-		bson1[field] = value
-	}
-	bson2[field] = existingFilter
-	aBson := bson.A{bson1, bson2}
-	return aBson
-}
-
+// createEqBson creates a mongodb filter if the operator is "eq"
 func createEqBson(field string, value string) bson.M {
 	returnBson := bson.M{}
 	if value == "true" || value == "false" {
@@ -119,6 +123,7 @@ func createEqBson(field string, value string) bson.M {
 	return returnBson
 }
 
+// createCompareBson creates a mongodb filter if the operator is lt, lte, gt, gte
 func createCompareBson(field string, operator string, value string) bson.M {
 	returnBson := bson.M{}
 
@@ -130,19 +135,4 @@ func createCompareBson(field string, operator string, value string) bson.M {
 		returnBson[field] = nestedBson
 	}
 	return returnBson
-}
-
-func createAndCompareBson(field string, operator string, value string, existingFilter interface{}) bson.A {
-	bson1 := bson.M{}
-	bson2 := bson.M{}
-	floatValue, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		log.Println(err)
-	} else {
-		nestedBson := bson.M{"$" + operator: floatValue}
-		bson1[field] = nestedBson
-	}
-	bson2[field] = existingFilter
-	aBson := bson.A{bson1, bson2}
-	return aBson
 }

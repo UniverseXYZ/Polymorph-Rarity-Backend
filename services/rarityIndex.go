@@ -1,4 +1,4 @@
-package rarityIndex
+package services
 
 import (
 	"fmt"
@@ -11,13 +11,18 @@ import (
 	"strings"
 )
 
+// CalulateRarityScore is the core function responsible for calcualting the rarity score.
+//
+// It calculates the rarity score of the polymorph, the different scalers used in the formuala and other rarity related metadata that is tracked and stored in the database.
+//
+// Configurations can be found in rarityConfig.go
 func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.RarityResult {
 	leftHand, rightHand, rarityAttributes := parseAttributes(attributes)
 
 	hasCompletedSet, setName, mainMatchingTraits, secSetname, secMatchingTraits := calculateCompleteSets(rarityAttributes)
-	colorMismatches := getColorMismatches(attributes, setName)
-	correctHandsScaler, handsSetName, matchingHands := getFullSetHandsScaler(len(mainMatchingTraits), hasCompletedSet, setName, leftHand, rightHand)
-	noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler := getScalers(hasCompletedSet, setName, colorMismatches, isVirgin)
+	isColoredSet, colorMismatches := getColorMismatches(attributes, setName)
+	scalers := getScalers(hasCompletedSet, setName, colorMismatches, isVirgin, isColoredSet)
+	handsScaler, handsSetName, matchingHandsCount := getFullSetHandsScaler(len(mainMatchingTraits), hasCompletedSet, setName, leftHand, rightHand)
 
 	mainSetCount := float64(len(mainMatchingTraits))
 	secSetBonus := config.SECONDARY_SET_SCALER * float64(len(secMatchingTraits))
@@ -25,7 +30,7 @@ func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.
 
 	baseRarity := math.Pow(2, mainSetCount-mismatchPenalty+secSetBonus)
 
-	totalScalars := noColorMismatchScaler * colorMismatchScaler * correctHandsScaler * degenScaler * virginScaler
+	totalScalars := scalers.NoColorMismatchScaler * scalers.ColorMismatchScaler * handsScaler * scalers.DegenScaler * scalers.VirginScaler
 	scaledRarity := math.Round((baseRarity * totalScalars * 100)) / 100
 	log.Println("Rarity index: " + fmt.Sprintf("%f", (scaledRarity)))
 
@@ -36,18 +41,21 @@ func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.
 		SecSetName:            secSetname,
 		SecMatchingTraits:     secMatchingTraits,
 		ColorMismatches:       int(colorMismatches),
-		HandsScaler:           correctHandsScaler,
+		HandsScaler:           handsScaler,
 		HandsSetName:          handsSetName,
-		MatchingHands:         matchingHands,
-		NoColorMismatchScaler: noColorMismatchScaler,
-		ColorMismatchScaler:   colorMismatchScaler,
-		DegenScaler:           degenScaler,
-		VirginScaler:          virginScaler,
+		MatchingHands:         matchingHandsCount,
+		NoColorMismatchScaler: scalers.NoColorMismatchScaler,
+		ColorMismatchScaler:   scalers.ColorMismatchScaler,
+		DegenScaler:           scalers.DegenScaler,
+		VirginScaler:          scalers.VirginScaler,
 		BaseRarity:            baseRarity,
 		ScaledRarity:          scaledRarity,
 	}
 }
 
+//parseAttributes parses the array of attrbutes.
+//
+//Returns left hand, right hand and the attrbitues without Character, Background attrbiutes as they aren't used in the rarity score formula
 func parseAttributes(attributes []structs.Attribute) (structs.Attribute, structs.Attribute, []structs.Attribute) {
 	var leftHand, rightHand structs.Attribute
 	var rarityAttributes []structs.Attribute
@@ -67,12 +75,13 @@ func parseAttributes(attributes []structs.Attribute) (structs.Attribute, structs
 	return leftHand, rightHand, rarityAttributes
 }
 
-func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, isVirgin bool) (float64, float64, float64, float64) {
+// getScalers calculates the eligible scalers for the polymorph
+func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, isVirgin bool, isColoredSet bool) structs.Scalers {
 	var noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler float64 = 1, 1, 1, 1
 
-	if hasCompletedSet && colorMismatches == 0 {
+	if hasCompletedSet && isColoredSet && colorMismatches == 0 {
 		noColorMismatchScaler = config.NO_COLOR_MISMATCH_SCALER
-	} else if hasCompletedSet && colorMismatches != 0 {
+	} else if hasCompletedSet && isColoredSet && colorMismatches != 0 {
 		colorMismatchScaler = config.COLOR_MISMATCH_SCALER
 	}
 
@@ -84,10 +93,18 @@ func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, i
 		virginScaler = config.VIRGIN_SCALER
 	}
 
-	return noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler
+	return structs.Scalers{
+		ColorMismatchScaler:   colorMismatchScaler,
+		NoColorMismatchScaler: noColorMismatchScaler,
+		VirginScaler:          virginScaler,
+		DegenScaler:           degenScaler,
+	}
 }
 
-func getColorMismatches(attributes []structs.Attribute, longestSet string) float64 {
+// getColorMismatches calculates determines if the set has colors or not and the number of color mismatches if applicable.
+//
+// Color sets can be found in rarityConfig.go
+func getColorMismatches(attributes []structs.Attribute, longestSet string) (bool, float64) {
 	var correctSet structs.ColorSet
 	if strings.Contains(longestSet, config.FootbalSetWithColors.Name) {
 		correctSet = config.FootbalSetWithColors
@@ -97,7 +114,7 @@ func getColorMismatches(attributes []structs.Attribute, longestSet string) float
 		correctSet = config.KnightSetWithColors
 	} else {
 		// Set is without colors
-		return 0
+		return false, 0
 	}
 	colorMap := make(map[string]float64)
 	var totalColorsOccurances, primaryColorOccurances float64
@@ -120,9 +137,10 @@ func getColorMismatches(attributes []structs.Attribute, longestSet string) float
 
 	colorMismatches := totalColorsOccurances - primaryColorOccurances
 
-	return colorMismatches
+	return true, colorMismatches
 }
 
+// getFullSetHandsScaler calculates the correct hands scaler based on the state of the set(no, incomplete or completed set)
 func getFullSetHandsScaler(matchingTraitsCount int, hasCompletedSet bool, completedSetName string,
 	leftHandAttr structs.Attribute, rightHandAttr structs.Attribute) (float64, string, int) {
 	var matchingSetHandsCount int
@@ -171,6 +189,9 @@ func getFullSetHandsScaler(matchingTraitsCount int, hasCompletedSet bool, comple
 	return 1, "", 0
 }
 
+// calculateCompleteSets iterates over polymorph's attributes.
+//
+// Return if set has been completed, main set name, main set attrbiutes, secondary set name, secondary set attributes
 func calculateCompleteSets(attributes []structs.Attribute) (bool, string, []string, string, []string) {
 	var hasCompletedSet bool
 	var mainSet int

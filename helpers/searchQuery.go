@@ -9,6 +9,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// ParseSearchQueryString accepts search string as parameter and build a mongodb filter for each filter from the config
+//
+// Config can be found in config/apiConfig.go
 func ParseSearchQueryString(search string) bson.M {
 	queries := bson.A{}
 
@@ -37,6 +40,7 @@ func ParseSearchQueryString(search string) bson.M {
 	return orQuery
 }
 
+// getExactTokenPattern build a regex expression that will make an exact match with the specified stirng
 func getExactTokenPattern(number string) string {
 	return "(^|\\D)" + number + "(?!\\d)"
 }

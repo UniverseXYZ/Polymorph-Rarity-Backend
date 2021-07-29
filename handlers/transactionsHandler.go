@@ -10,6 +10,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// GetTransactionsMapping fetches all records from the transactions collections. Returns a mapping of the records.
+//
+// The application has to know which morph events have already been processed in order to prevent duplicate false information stored in database
 func GetTransactionsMapping(polymorphDBName string, transactionsColl string) map[string]map[uint]bool {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, transactionsColl)
 	if err != nil {
@@ -37,6 +40,9 @@ func GetTransactionsMapping(polymorphDBName string, transactionsColl string) map
 	return txMap
 }
 
+// SaveTransaction persists the processed transaction in the database
+//
+// If the application stops it will be able to load the processed event in memory from the database
 func SaveTransaction(polymorphDBName string, transactionsColl string, transaction models.Transaction) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, transactionsColl)
 	if err != nil {

@@ -11,6 +11,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// GetMorphPriceMapping fetches all records from the morph cost collection. Returns a mapping of the records
+//
+// The application needs to track the changes in the morph prices in order to create correct morph history snapshots
 func GetMorphPriceMapping(polymorphDBName string, priceCollection string) map[string]float32 {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, priceCollection)
 	if err != nil {
@@ -33,6 +36,9 @@ func GetMorphPriceMapping(polymorphDBName string, priceCollection string) map[st
 	return priceMap
 }
 
+// SaveMorphPrice persists the new polymorph morph price to the database
+//
+// This price will be fetched and stored in memory every time the process starts.
 func SaveMorphPrice(morphPrice models.MorphCost, polymorphDBName string, priceCollection string) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, priceCollection)
 	if err != nil {

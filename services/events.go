@@ -17,6 +17,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// collectEvents sends request using the ethereum client for events emitted from the Polymorphs contract. It iterates over the events and filters for mint and morph events.
+// Events iteration is implemented concurrently.
+// Returns last processed block so it can be persisted in the database after the events have been fully processed.
+//
+// If events in the block range is > 10,000 the range is split in two and the function is called recursively until the blocks range can be processed.(10,000 limit: https://infura.io/docs/ethereum/json-rpc/eth_getLogs)
 func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *structs.ConfigService, polymorphDBName string, rarityCollectionName string, blocksCollectionName string, startBlock int64, endBlock int64, wg *sync.WaitGroup, elm *structs.EventLogsMutex) uint64 {
 	var lastProcessedBlockNumber, lastChainBlockNumberInt64 int64
 
@@ -56,6 +61,9 @@ func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 	return uint64(lastChainBlockNumberInt64)
 }
 
+// saveToEventLogMutex concurrently saves mint and morph events an array which will be processed after all events have been filtered for these events.
+//
+// Uses Mutex and WaitGroup to prevent race conditions
 func saveToEventLogMutex(ethLogs []types.Log, elm *structs.EventLogsMutex, wg *sync.WaitGroup) {
 	defer wg.Done()
 	elm.Mutex.Lock()
@@ -65,7 +73,6 @@ func saveToEventLogMutex(ethLogs []types.Log, elm *structs.EventLogsMutex, wg *s
 		case constants.MintEvent.Signature, constants.MorphEvent.Signature:
 			elm.EventLogs = append(elm.EventLogs, ethLog)
 		}
-		elm.EventSigs[eventSig]++
 	}
 	elm.Mutex.Unlock()
 }

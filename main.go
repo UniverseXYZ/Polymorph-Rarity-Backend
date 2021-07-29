@@ -34,6 +34,9 @@ func connectToEthereum() *dlt.EthereumClient {
 	return client
 }
 
+// initResources is a wrapper function which tries to initialize all .env variables, contract abi, new contract instance.
+//
+// It connects to the ethereum client and returns all information which will be needed at some point from the application
 func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *structs.ConfigService, structs.DBInfo) {
 	// Load env variables
 	err := godotenv.Load()
@@ -83,7 +86,7 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *struc
 		log.Fatalln(err)
 	}
 
-	configService := config.NewConfigService("./config.json")
+	configService := config.NewConfigService("./config-degen-op.json")
 	dbInfo := structs.DBInfo{
 		PolymorphDBName:            polymorphDBName,
 		RarityCollectionName:       rarityCollectionName,
@@ -95,6 +98,12 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *struc
 	return ethClient, contractAbi, instance, contractAddress, configService, dbInfo
 }
 
+// main is the entry point of the application.
+// It fetches all configurations and starts 2 concurrent processes:
+//
+// 1. API which handles GET requests
+//
+// 2. Polling process which processes mint and morph events and stores their metadata in the database
 func main() {
 	ethClient,
 		contractAbi,
@@ -114,6 +123,7 @@ func main() {
 	startAPI()
 }
 
+// startAPI registers the endpoints for API and listens for requests
 func startAPI() {
 	// Routine two: API -> Should start after deploy?
 	app := fiber.New()
@@ -123,9 +133,14 @@ func startAPI() {
 	log.Fatal(app.Listen(8000))
 }
 
+// recoverAndPoll loads transactions and morph cost state in memory from the database and initiates polling mechanism.
+//
+// Recovery function and polling function is the same.
+// Currently the polling timer doesn't wait for the previous one to finish before starting the new countdown
 func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *structs.ConfigService, dbInfo structs.DBInfo) {
 	// Build transactions scramble transaction mapping from db
 	txMap := handlers.GetTransactionsMapping(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
+	// Build polymorph cost mapping from db
 	morphCostMap := handlers.GetMorphPriceMapping(dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
 	// Recover immediately
 	services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)

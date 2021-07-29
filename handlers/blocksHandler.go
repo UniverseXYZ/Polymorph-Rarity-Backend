@@ -12,6 +12,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// GetLastProcessedBlockNumber fetches the last processed block number from the block collection. At any point of the application there should be only one record in the collection
+//
+// If no collection or record exists - returns 0. This means the application will start processing from the beggining.
 func GetLastProcessedBlockNumber(polymorphDBName string, blocksCollectionName string) (int64, error) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, blocksCollectionName)
 	if err != nil {
@@ -36,6 +39,9 @@ func GetLastProcessedBlockNumber(polymorphDBName string, blocksCollectionName st
 	return block, nil
 }
 
+// CreateOrUpdateLastProcessedBlock persists the passed block number in the parameters to the block collection. At any point of the application there should be only one record in the collection
+//
+// If no collection or records exists - it will create a new one.
 func CreateOrUpdateLastProcessedBlock(number uint64, polymorphDBName string, blocksCollectionName string) (string, error) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, blocksCollectionName)
 	if err != nil {

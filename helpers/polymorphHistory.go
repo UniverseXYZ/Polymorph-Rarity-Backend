@@ -7,9 +7,10 @@ import (
 	"rarity-backend/structs"
 )
 
+// GetAttribute calcualtes the old and new attributes.
+//
+// This is later used to create a history snapshot of the polymorph
 func GetAttribute(newGene string, oldGene string, geneIdx int, configService *structs.ConfigService) (structs.Attribute, structs.Attribute) {
-	// newGene = ReverseString(newGene)
-	// oldGene = ReverseString(oldGene)
 	geneIdx = -geneIdx
 	newAttribute := structs.Attribute{}
 	oldAttribute := structs.Attribute{}

@@ -18,6 +18,29 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// GetPolymorphs endpoints returns polymorphs based on different filters that can be applied.
+//
+//If no polymorph is found returns empty response
+//
+//	Accepted query parameters:
+//
+// 		Take - int - Sets the number of results that should be returned
+//
+// 		Page - int - skips ((page - 1) * take) results
+//
+// 		SortField - string - sets field on which the results will be sorted. Default is polymorph id
+//
+// 		SortDir  - asc/desc - sets the sort direction of the results. Default is ascending
+//
+// 		Search - string - the string will be searched in different fields.
+//
+//		Searchable fields can be found in "apiConfig.go".
+//
+//		Filter - string - this query param requires special syntax in order to work.
+//
+//		See helpers.ParseFilterQueryString() for more information.
+//
+//		Example filter query: "rarityscore_gte_13.2_and_lte_20;isvirgin_eq_true;"
 func GetPolymorphs(c *fiber.Ctx) {
 	godotenv.Load()
 	polymorphDBName := os.Getenv("POLYMORPH_DB")
@@ -73,7 +96,9 @@ func GetPolymorphs(c *fiber.Ctx) {
 	}
 
 	if queryParams.SortField != "" {
-		findOptions.SetSort(bson.D{{queryParams.SortField, sortDir}})
+		findOptions.SetSort(bson.M{queryParams.SortField: sortDir})
+	} else {
+		findOptions.SetSort(bson.M{constants.MorphFieldNames.TokenId: sortDir})
 	}
 
 	curr, err := collection.Find(context.Background(), aggrFilters, &findOptions)
@@ -100,6 +125,9 @@ func GetPolymorphs(c *fiber.Ctx) {
 	c.Send(json)
 }
 
+// GetPolymorphById endpoints accepts id of a single polymorph and information for a single polymorph.
+//
+// If no polymorph is found returns empty response
 func GetPolymorphById(c *fiber.Ctx) {
 	godotenv.Load()
 
@@ -135,12 +163,18 @@ func GetPolymorphById(c *fiber.Ctx) {
 	c.Send(json)
 }
 
+// removePrivateFields removes internal fields that are of no interest to the users of the API.
+//
+// Configuration of these fields can be found in helpers.apiConfig.go
 func removePrivateFields(findOptions *options.FindOptions) {
 	for _, field := range config.MORPHS_NO_PROJECTION_FIELDS {
 		findOptions.SetProjection(bson.M{field: 0})
 	}
 }
 
+// removePrivateFieldsSingle removes internal fields that are of no interest to the users of the API.
+//
+// Configuration of these fields can be found in helpers.apiConfig.go
 func removePrivateFieldsSingle(findOptions *options.FindOneOptions) {
 	for _, field := range config.MORPHS_NO_PROJECTION_FIELDS {
 		findOptions.SetProjection(bson.M{field: 0})

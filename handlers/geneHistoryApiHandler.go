@@ -12,6 +12,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// GetPolymorphHistory endpoints accepts id of a single polymorph and returns all history snapshot from the database.
+//
+// History snapshots represent the changes made by scrambling or morphing this polymorph.
 func GetPolymorphHistory(c *fiber.Ctx) {
 	godotenv.Load()
 

@@ -15,6 +15,11 @@ import (
 var once sync.Once
 var instance *mongo.Client
 
+// GetDbConnection returns an instance of a mongo db client. This is a singleton pattern in order to have only one alive connection to the database.
+//
+// If no connection exists, it will connect to database.
+//
+// If connection exists, it will return the instance of the database
 func GetDbConnection() *mongo.Client {
 	once.Do(func() {
 		client := connectToDb()
@@ -26,6 +31,7 @@ func GetDbConnection() *mongo.Client {
 	return instance
 }
 
+// connectToDb retrieves db config from .env and tries to conenct to the database.
 func connectToDb() *mongo.Client {
 	err := godotenv.Load()
 	if err != nil {
@@ -56,6 +62,7 @@ func connectToDb() *mongo.Client {
 	return client
 }
 
+// checkConnectionAndRestore ping the client and it throws and error, it tries to reconnect.
 func checkConnectionAndRestore(client *mongo.Client) {
 	err := client.Ping(context.Background(), readpref.Primary())
 
@@ -66,6 +73,7 @@ func checkConnectionAndRestore(client *mongo.Client) {
 	}
 }
 
+// GetMongoDbCollection accepts dbName and collectionname and returns an instance of the specified collection.
 func GetMongoDbCollection(DbName string, CollectionName string) (*mongo.Collection, error) {
 	client := GetDbConnection()
 
