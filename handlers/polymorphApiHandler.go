@@ -167,16 +167,20 @@ func GetPolymorphById(c *fiber.Ctx) {
 //
 // Configuration of these fields can be found in helpers.apiConfig.go
 func removePrivateFields(findOptions *options.FindOptions) {
+	noProjectionFields := bson.M{}
 	for _, field := range config.MORPHS_NO_PROJECTION_FIELDS {
-		findOptions.SetProjection(bson.M{field: 0})
+		noProjectionFields[field] = 0
 	}
+	findOptions.SetProjection(noProjectionFields)
 }
 
 // removePrivateFieldsSingle removes internal fields that are of no interest to the users of the API.
 //
 // Configuration of these fields can be found in helpers.apiConfig.go
 func removePrivateFieldsSingle(findOptions *options.FindOneOptions) {
+	noProjectionFields := bson.M{}
 	for _, field := range config.MORPHS_NO_PROJECTION_FIELDS {
-		findOptions.SetProjection(bson.M{field: 0})
+		noProjectionFields[field] = 0
 	}
+	findOptions.SetProjection(noProjectionFields)
 }
