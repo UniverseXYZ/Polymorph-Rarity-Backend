@@ -28,8 +28,6 @@ var MORPHS_NO_PROJECTION_FIELDS []string = []string{
 	constants.MorphFieldNames.Torso,
 	constants.MorphFieldNames.Pants,
 	constants.MorphFieldNames.Footwear,
-	constants.MorphFieldNames.LeftHand,
-	constants.MorphFieldNames.RightHand,
 }
 
 const RESULTS_LIMIT int64 = 100
