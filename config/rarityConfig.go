@@ -57,7 +57,7 @@ var HandsMap = map[string][]string{
 	"Party Degen":      {"Banana", "Bong", "Beer", "Blue Degen Sword", "Double Degen SwordBlue", "Double Degen SwordRed", "Double Degen SwordYellow", "Green Degen Sword", "Purple Degen Sword", "Red Degen Sword"},
 }
 
-var CombosMapNew = map[string]int{
+var CombosMap = map[string]int{
 	"Zombie Rags":      2,
 	"Taekwondo":        2,
 	"Hockey":           3,
@@ -90,7 +90,7 @@ var CombosMapNew = map[string]int{
 	"Naked":            5,
 }
 
-var CombosMap = map[string]int{
+var CombosMapNewSets = map[string]int{
 	"Amish":            4,
 	"Astronaut":        4,
 	"Ninja":            4,
