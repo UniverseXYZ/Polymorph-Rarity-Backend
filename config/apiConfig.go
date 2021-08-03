@@ -3,8 +3,8 @@ package config
 import "rarity-backend/constants"
 
 var SEARCH_QUERY_FIELDS []string = []string{
-	constants.MorphFieldNames.TokenId,
 	constants.MorphFieldNames.Rank,
+	constants.MorphFieldNames.TokenId,
 	constants.MorphFieldNames.RarityScore,
 	constants.MorphFieldNames.Headwear,
 	constants.MorphFieldNames.Eyewear,
@@ -21,13 +21,6 @@ var SEARCH_QUERY_FIELDS []string = []string{
 var MORPHS_NO_PROJECTION_FIELDS []string = []string{
 	constants.MorphFieldNames.ObjId,
 	constants.MorphFieldNames.OldGenes,
-	constants.MorphFieldNames.Character,
-	constants.MorphFieldNames.Background,
-	constants.MorphFieldNames.Headwear,
-	constants.MorphFieldNames.Eyewear,
-	constants.MorphFieldNames.Torso,
-	constants.MorphFieldNames.Pants,
-	constants.MorphFieldNames.Footwear,
 }
 
-const RESULTS_LIMIT int64 = 100
+const RESULTS_LIMIT int64 = 10000

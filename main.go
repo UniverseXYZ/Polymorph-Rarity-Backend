@@ -86,7 +86,7 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *struc
 		log.Fatalln(err)
 	}
 
-	configService := config.NewConfigService("./config-degen-op.json")
+	configService := config.NewConfigService("./config.json")
 	dbInfo := structs.DBInfo{
 		PolymorphDBName:            polymorphDBName,
 		RarityCollectionName:       rarityCollectionName,

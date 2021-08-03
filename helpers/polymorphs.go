@@ -14,10 +14,10 @@ import (
 )
 
 // CreateMorphEntity creates an entity which will be save in the rarities collection
-func CreateMorphEntity(event structs.PolymorphEvent, attributes []structs.Attribute, isVirgin bool, rarityResult structs.RarityResult) models.PolymorphEntity {
+func CreateMorphEntity(event structs.PolymorphEvent, metadata structs.Metadata, isVirgin bool, rarityResult structs.RarityResult) models.PolymorphEntity {
 	var background, leftHand, rightHand, head, eye, torso, pants, feet, character structs.Attribute
 
-	for _, attr := range attributes {
+	for _, attr := range metadata.Attributes {
 		switch attr.TraitType {
 		case constants.MorphAttriutes.Background:
 			background = attr
@@ -69,6 +69,9 @@ func CreateMorphEntity(event structs.PolymorphEvent, attributes []structs.Attrib
 		DegenScaler:           rarityResult.DegenScaler,
 		VirginScaler:          rarityResult.VirginScaler,
 		BaseRarity:            rarityResult.BaseRarity,
+		ImageURL:              metadata.Image,
+		Description:           metadata.Description,
+		Name:                  metadata.Name,
 	}
 	if len(morphEntity.SecMatchingTraits) == 0 {
 		morphEntity.SecMatchingTraits = []string{}

@@ -96,7 +96,7 @@ func GetPolymorphs(c *fiber.Ctx) {
 	}
 
 	if queryParams.SortField != "" {
-		findOptions.SetSort(bson.M{queryParams.SortField: sortDir})
+		findOptions.SetSort(bson.D{{queryParams.SortField, sortDir}, {constants.MorphFieldNames.TokenId, 1}})
 	} else {
 		findOptions.SetSort(bson.M{constants.MorphFieldNames.TokenId: sortDir})
 	}
@@ -115,7 +115,6 @@ func GetPolymorphs(c *fiber.Ctx) {
 
 	var results []bson.M
 	curr.All(context.Background(), &results)
-
 	if results == nil {
 		c.Send(results)
 		return

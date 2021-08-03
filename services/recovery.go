@@ -89,7 +89,7 @@ func processMint(mintEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, c
 		g := metadata.Genome(event.NewGene.String())
 		metadataJson := (&g).Metadata(event.MorphId.String(), configService)
 		rarityResult := CalulateRarityScore(metadataJson.Attributes, true)
-		mintEntity := helpers.CreateMorphEntity(event, metadataJson.Attributes, true, rarityResult)
+		mintEntity := helpers.CreateMorphEntity(event, metadataJson, true, rarityResult)
 
 		mintsMutex.Mints = append(mintsMutex.Mints, mintEntity)
 		mintsMutex.TokensMap[event.MorphId.String()] = true
@@ -163,7 +163,7 @@ func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, c
 		metadataJson := (&g).Metadata(mId.String(), configService)
 
 		rarityResult := CalulateRarityScore(metadataJson.Attributes, false)
-		morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, OldGene: mEvent.OldGene, MorphId: mId}, metadataJson.Attributes, false, rarityResult)
+		morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, OldGene: mEvent.OldGene, MorphId: mId}, metadataJson, false, rarityResult)
 
 		res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, toSaveGene, geneDifferences)
 		if err != nil {
@@ -231,10 +231,10 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
 
 	g := metadata.Genome(mEvent.NewGene.String())
-	metadataJson := (&g).Metadata(mId.String(), configService)
+	metadata := (&g).Metadata(mId.String(), configService)
 
-	rarityResult := CalulateRarityScore(metadataJson.Attributes, false)
-	morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, MorphId: mId}, metadataJson.Attributes, false, rarityResult)
+	rarityResult := CalulateRarityScore(metadata.Attributes, false)
+	morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, MorphId: mId}, metadata, false, rarityResult)
 
 	res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, oldGenesMap[mId.String()], geneDifferences)
 	if err != nil {

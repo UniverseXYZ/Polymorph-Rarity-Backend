@@ -3,6 +3,7 @@ package metadata
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"rarity-backend/constants"
 	"rarity-backend/structs"
@@ -245,5 +246,19 @@ func (g *Genome) Metadata(tokenId string, configService *structs.ConfigService) 
 	m.Name = g.name(configService, tokenId)
 	m.Description = g.description(configService, tokenId)
 	m.ExternalUrl = fmt.Sprintf("%s%s", constants.EXTERNAL_URL, tokenId)
+
+	genes := g.Genes()
+
+	imageUrl := strings.Builder{}
+	imageUrl.WriteString(constants.POLYMORPH_IMAGE_URL)
+
+	for _, gene := range genes {
+		imageUrl.WriteString(gene)
+	}
+
+	imageUrl.WriteString(".jpg")
+
+	m.Image = imageUrl.String()
+
 	return m
 }

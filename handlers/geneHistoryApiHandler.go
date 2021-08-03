@@ -44,6 +44,7 @@ func GetPolymorphHistory(c *fiber.Ctx) {
 	defer curr.Close(context.Background())
 
 	curr.All(context.Background(), &results)
+	//TODO: Convert tokenid to be integer in database
 
 	if results == nil {
 		c.Send(bson.M{})
