@@ -22,7 +22,7 @@ func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.
 	hasCompletedSet, setName, mainMatchingTraits, secSetname, secMatchingTraits := calculateCompleteSets(rarityAttributes)
 	isColoredSet, colorMismatches := getColorMismatches(attributes, setName)
 	scalers := getScalers(hasCompletedSet, setName, colorMismatches, isVirgin, isColoredSet)
-	handsScaler, handsSetName, matchingHandsCount := getFullSetHandsScaler(len(mainMatchingTraits), hasCompletedSet, setName, leftHand, rightHand)
+	handsScaler, handsSetName, matchingHandsCount, mainMatchingTraitsWithHands := getFullSetHandsScaler(mainMatchingTraits, hasCompletedSet, setName, leftHand, rightHand)
 
 	mainSetCount := float64(len(mainMatchingTraits))
 	secSetBonus := config.SECONDARY_SET_SCALER * float64(len(secMatchingTraits))
@@ -37,7 +37,7 @@ func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.
 	return structs.RarityResult{
 		HasCompletedSet:       hasCompletedSet,
 		MainSetName:           setName,
-		MainMatchingTraits:    mainMatchingTraits,
+		MainMatchingTraits:    mainMatchingTraitsWithHands,
 		SecSetName:            secSetname,
 		SecMatchingTraits:     secMatchingTraits,
 		ColorMismatches:       int(colorMismatches),
@@ -141,12 +141,16 @@ func getColorMismatches(attributes []structs.Attribute, longestSet string) (bool
 }
 
 // getFullSetHandsScaler calculates the correct hands scaler based on the state of the set(no, incomplete or completed set)
-func getFullSetHandsScaler(matchingTraitsCount int, hasCompletedSet bool, completedSetName string,
-	leftHandAttr structs.Attribute, rightHandAttr structs.Attribute) (float64, string, int) {
+func getFullSetHandsScaler(mainMatchingTraits []string, hasCompletedSet bool, completedSetName string,
+	leftHandAttr structs.Attribute, rightHandAttr structs.Attribute) (float64, string, int, []string) {
 	var matchingSetHandsCount int
 	for _, handAttribute := range config.HandsMap[completedSetName] {
-		if handAttribute == leftHandAttr.Value || handAttribute == rightHandAttr.Value {
+		if handAttribute == leftHandAttr.Value {
 			matchingSetHandsCount++
+			mainMatchingTraits = append(mainMatchingTraits, leftHandAttr.TraitType)
+		} else if handAttribute == rightHandAttr.Value {
+			matchingSetHandsCount++
+			mainMatchingTraits = append(mainMatchingTraits, rightHandAttr.TraitType)
 		}
 	}
 	if matchingSetHandsCount == 0 {
@@ -159,34 +163,34 @@ func getFullSetHandsScaler(matchingTraitsCount int, hasCompletedSet bool, comple
 			handMap[set]++
 			if handMap[set] == 2 {
 				if leftHandAttr.Value == rightHandAttr.Value {
-					return config.NO_SET_TWO_SAME_MATCHING_HANDS_SCALER, set, handMap[set]
+					return config.NO_SET_TWO_SAME_MATCHING_HANDS_SCALER, set, handMap[set], mainMatchingTraits
 				} else {
-					return config.NO_SET_TWO_MATCHING_HANDS_SCALER, set, handMap[set]
+					return config.NO_SET_TWO_MATCHING_HANDS_SCALER, set, handMap[set], mainMatchingTraits
 				}
 			}
 		}
 	} else if !hasCompletedSet {
 		if matchingSetHandsCount == 1 {
-			return config.INCOMPLETE_SET_ONE_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+			return config.INCOMPLETE_SET_ONE_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount, mainMatchingTraits
 		}
 		if matchingSetHandsCount == 2 && leftHandAttr.Value != rightHandAttr.Value {
-			return config.INCOMPLETE_SET_TWO_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+			return config.INCOMPLETE_SET_TWO_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount, mainMatchingTraits
 		}
 		if matchingSetHandsCount == 2 && leftHandAttr.Value == rightHandAttr.Value {
-			return config.INCOMPLETE_SET_TWO_SAME_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+			return config.INCOMPLETE_SET_TWO_SAME_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount, mainMatchingTraits
 		}
 	} else if hasCompletedSet {
 		if matchingSetHandsCount == 1 {
-			return config.HAS_SET_ONE_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+			return config.HAS_SET_ONE_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount, mainMatchingTraits
 		}
 		if matchingSetHandsCount == 2 && leftHandAttr.Value != rightHandAttr.Value {
-			return config.HAS_SET_TWO_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+			return config.HAS_SET_TWO_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount, mainMatchingTraits
 		}
 		if matchingSetHandsCount == 2 && leftHandAttr.Value == rightHandAttr.Value {
-			return config.INCOMPLETE_SET_TWO_SAME_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount
+			return config.INCOMPLETE_SET_TWO_SAME_MATCHING_HANDS_SCALER, completedSetName, matchingSetHandsCount, mainMatchingTraits
 		}
 	}
-	return 1, "", 0
+	return 1, "", 0, mainMatchingTraits
 }
 
 // calculateCompleteSets iterates over polymorph's attributes.
