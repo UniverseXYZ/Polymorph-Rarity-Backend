@@ -3,7 +3,9 @@ module rarity-backend
 go 1.16
 
 require (
+	cloud.google.com/go/storage v1.5.0
 	github.com/aws/aws-sdk-go v1.39.4 // indirect
+	github.com/disintegration/imaging v1.6.2
 	github.com/ethereum/go-ethereum v1.10.4
 	github.com/gofiber/fiber v1.14.6
 	github.com/golang/snappy v0.0.4 // indirect
