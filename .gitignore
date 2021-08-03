@@ -3,3 +3,4 @@
 go.sum
 .env.prod
 rarity-backend
+credentials.json
