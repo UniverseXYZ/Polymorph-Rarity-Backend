@@ -144,13 +144,22 @@ func getColorMismatches(attributes []structs.Attribute, longestSet string) (bool
 func getFullSetHandsScaler(mainMatchingTraits []string, hasCompletedSet bool, completedSetName string,
 	leftHandAttr structs.Attribute, rightHandAttr structs.Attribute) (float64, string, int, []string) {
 	var matchingSetHandsCount int
+
+	// Match left hand
 	for _, handAttribute := range config.HandsMap[completedSetName] {
 		if handAttribute == leftHandAttr.Value {
 			matchingSetHandsCount++
 			mainMatchingTraits = append(mainMatchingTraits, leftHandAttr.TraitType)
-		} else if handAttribute == rightHandAttr.Value {
+			break
+		}
+	}
+
+	// Match right hand
+	for _, handAttribute := range config.HandsMap[completedSetName] {
+		if handAttribute == rightHandAttr.Value {
 			matchingSetHandsCount++
 			mainMatchingTraits = append(mainMatchingTraits, rightHandAttr.TraitType)
+			break
 		}
 	}
 	if matchingSetHandsCount == 0 {
