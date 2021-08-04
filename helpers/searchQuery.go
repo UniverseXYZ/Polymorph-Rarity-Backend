@@ -19,12 +19,8 @@ func ParseSearchQueryString(search string) bson.M {
 	for _, field := range config.SEARCH_QUERY_FIELDS {
 		pattern := ""
 		switch field {
-		case constants.MorphFieldNames.TokenId:
-			pattern = getExactTokenPattern(search)
-			regex := primitive.Regex{Pattern: pattern, Options: "i"}
-			regexFilter := bson.M{"$regex": regex}
-			queries = append(queries, bson.M{field: regexFilter})
-		case constants.MorphFieldNames.Rank:
+		case constants.MorphFieldNames.TokenId,
+			constants.MorphFieldNames.Rank:
 			parsed, err := strconv.Atoi(search)
 			if err == nil {
 				queries = append(queries, bson.M{field: parsed})
