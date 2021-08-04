@@ -7,6 +7,7 @@ import (
 	"rarity-backend/constants"
 	"rarity-backend/db"
 	"rarity-backend/models"
+	"strconv"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -41,11 +42,11 @@ func PersistSinglePolymorph(entity models.PolymorphEntity, polymorphDBName strin
 	}
 
 	if res.UpsertedCount != 0 {
-		return "Inserted id in polymorph db: " + entity.TokenId, nil
+		return "Inserted id in polymorph db: " + strconv.Itoa(entity.TokenId), nil
 	} else if res.ModifiedCount != 0 {
-		return "Updated id in polymorph db: " + entity.TokenId, nil
+		return "Updated id in polymorph db: " + strconv.Itoa(entity.TokenId), nil
 	} else {
-		return "Didn't do shit in polymorph db (probably score is the same): " + entity.TokenId, nil
+		return "Didn't do shit in polymorph db (probably score is the same): " + strconv.Itoa(entity.TokenId), nil
 	}
 }
 

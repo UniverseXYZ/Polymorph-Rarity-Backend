@@ -1,7 +1,7 @@
 package models
 
 type PolymorphEntity struct {
-	TokenId               string   `json:"tokenid"`
+	TokenId               int      `json:"tokenid"`
 	Rank                  int      `json:"rank"`
 	CurrentGene           string   `json:"currentgene"`
 	Headwear              string   `json:"headwear"`

@@ -7,6 +7,7 @@ import (
 	"rarity-backend/models"
 	"rarity-backend/structs"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,7 +42,7 @@ func CreateMorphEntity(event structs.PolymorphEvent, metadata structs.Metadata, 
 	}
 
 	morphEntity := models.PolymorphEntity{
-		TokenId:               event.MorphId.String(),
+		TokenId:               int(event.MorphId.Int64()),
 		Rank:                  0,
 		CurrentGene:           event.NewGene.String(),
 		Headwear:              head.Value,
@@ -118,9 +119,10 @@ func CreateMorphSnapshot(geneDiff int, tokenId string, newGene string, oldGene s
 	}
 
 	imageUrl.WriteString(".jpg")
+	tokenInt, _ := strconv.Atoi(tokenId)
 
 	return models.PolymorphHistory{
-		TokenId:           tokenId,
+		TokenId:           tokenInt,
 		Type:              changeType,
 		DateTime:          time.Unix(int64(timestamp), 0).UTC(),
 		AttributeChanged:  oldAttr.TraitType,

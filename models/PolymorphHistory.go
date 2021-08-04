@@ -4,7 +4,7 @@ import "time"
 
 type PolymorphHistory struct {
 	Type              string    `json:"type,omitempty"`
-	TokenId           string    `json:"tokenid,omitempty"`
+	TokenId           int       `json:"tokenid,omitempty"`
 	DateTime          time.Time `json:"datetime,omitempty"`
 	AttributeChanged  string    `json:"attributechanged,omitempty"`
 	PreviousAttribute string    `json:"previousattribute,omitempty"`

@@ -6,6 +6,7 @@ import (
 	"log"
 	"rarity-backend/db"
 	"rarity-backend/models"
+	"strconv"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -27,5 +28,5 @@ func SavePolymorphHistory(entity models.PolymorphHistory, polymorphDBName string
 		log.Println(err)
 	}
 
-	log.Println("Inserted history snapshot for polymorph #" + entity.TokenId)
+	log.Println("Inserted history snapshot for polymorph #" + strconv.Itoa(entity.TokenId))
 }
