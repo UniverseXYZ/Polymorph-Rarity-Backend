@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"math"
 	"rarity-backend/config"
 	"rarity-backend/constants"
 	"strconv"
@@ -23,12 +24,18 @@ func ParseSearchQueryString(search string) bson.M {
 			regex := primitive.Regex{Pattern: pattern, Options: "i"}
 			regexFilter := bson.M{"$regex": regex}
 			queries = append(queries, bson.M{field: regexFilter})
-		case constants.MorphFieldNames.Rank,
-			constants.MorphFieldNames.RarityScore:
+		case constants.MorphFieldNames.Rank:
 			parsed, err := strconv.Atoi(search)
 			if err == nil {
 				queries = append(queries, bson.M{field: parsed})
 			}
+		case constants.MorphFieldNames.RarityScore:
+			parsed, err := strconv.ParseFloat(search, 64)
+			parsed = math.Floor(parsed*100) / 100
+			if err == nil {
+				queries = append(queries, bson.M{field: parsed})
+			}
+
 		default:
 			pattern = search
 			regex := primitive.Regex{Pattern: pattern, Options: "i"}
