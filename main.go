@@ -120,7 +120,7 @@ func main() {
 		configService,
 		dbInfo)
 
-	// startAPI()
+	startAPI()
 }
 
 // startAPI registers the endpoints for API and listens for requests
@@ -128,9 +128,9 @@ func main() {
 func startAPI() {
 	// Routine two: API -> Should start after deploy?
 	app := fiber.New()
-	app.Get("/morphs/", handlers.GetPolymorphs)
-	app.Get("/morphs/:id", handlers.GetPolymorphById)
-	app.Get("/morphs/history/:id", handlers.GetPolymorphHistory)
+	// app.Get("/morphs/", handlers.GetPolymorphs)
+	// app.Get("/morphs/:id", handlers.GetPolymorphById)
+	// app.Get("/morphs/history/:id", handlers.GetPolymorphHistory)
 	log.Fatal(app.Listen(8000))
 }
 

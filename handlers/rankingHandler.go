@@ -28,7 +28,7 @@ func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
 
 	var findOptions options.FindOptions
 	findOptions.SetLimit(10000)
-	findOptions.SetSort(bson.D{{constants.MorphFieldNames.RarityScore, -1}})
+	findOptions.SetSort(bson.D{{constants.MorphFieldNames.RarityScore, -1}, {constants.MorphFieldNames.TokenId, 1}})
 	results, err := collection.Find(context.Background(), bson.D{}, &findOptions)
 	if err != nil {
 		log.Println(err)
@@ -37,9 +37,9 @@ func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
 	results.All(context.Background(), &entities)
 
 	var wg sync.WaitGroup
-	for _, entity := range entities {
+	for i, entity := range entities {
 		wg.Add(1)
-		setRank(entity, &ranking, &wg)
+		go setRank(entity, i+1, &ranking, &wg)
 	}
 	wg.Wait()
 	if len(ranking.Operations) > 0 {
@@ -54,20 +54,15 @@ func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
 // If there's a change we concurrently prepare an update operation and append it to the update operations array
 //
 // Mutes and WaitGroup are used to prevent race conditions
-func setRank(entity models.PolymorphEntity, ranking *structs.RankMutex, wg *sync.WaitGroup) {
-	ranking.Mutex.Lock()
+func setRank(entity models.PolymorphEntity, newRank int, ranking *structs.RankMutex, wg *sync.WaitGroup) {
 
-	if ranking.PrevRarity != entity.RarityScore {
-		ranking.Rank++
-		ranking.PrevRarity = entity.RarityScore
-	}
-
-	if entity.Rank != ranking.Rank {
+	if entity.Rank != newRank {
 		operation := mongo.NewUpdateOneModel()
 		operation.SetFilter(bson.M{constants.MorphFieldNames.TokenId: entity.TokenId})
-		operation.SetUpdate(bson.M{"$set": bson.M{constants.MorphFieldNames.Rank: ranking.Rank}})
+		operation.SetUpdate(bson.M{"$set": bson.M{constants.MorphFieldNames.Rank: newRank}})
+		ranking.Mutex.Lock()
 		ranking.Operations = append(ranking.Operations, operation)
+		ranking.Mutex.Unlock()
 	}
-	ranking.Mutex.Unlock()
 	wg.Done()
 }
