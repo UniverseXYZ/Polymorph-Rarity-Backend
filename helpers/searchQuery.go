@@ -42,8 +42,3 @@ func ParseSearchQueryString(search string) bson.M {
 	orQuery := bson.M{"$or": queries}
 	return orQuery
 }
-
-// getExactTokenPattern build a regex expression that will make an exact match with the specified stirng
-func getExactTokenPattern(number string) string {
-	return "(^|\\D)" + number + "(?!\\d)"
-}

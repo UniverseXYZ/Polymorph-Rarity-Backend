@@ -26,7 +26,6 @@ type PolymorphEntity struct {
 	MatchingHands         int      `json:"matchinghands"`
 	NoColorMismatchScaler float64  `json:"nocolormismatchscaler"`
 	ColorMismatchScaler   float64  `json:"colormismatchscaler"`
-	DegenScaler           float64  `json:"degenscaler"`
 	VirginScaler          float64  `json:"virginscaler"`
 	BaseRarity            float64  `json:"baserarity"`
 	ImageURL              string   `json:"imageurl"`

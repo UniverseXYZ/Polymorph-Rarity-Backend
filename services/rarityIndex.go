@@ -30,8 +30,8 @@ func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.
 
 	baseRarity := math.Pow(2, mainSetCount-mismatchPenalty+secSetBonus)
 
-	totalScalars := scalers.NoColorMismatchScaler * scalers.ColorMismatchScaler * handsScaler * scalers.DegenScaler * scalers.VirginScaler
-	scaledRarity := math.Round((baseRarity * totalScalars * 100)) / 100
+	totalScalars := scalers.NoColorMismatchScaler * scalers.ColorMismatchScaler * handsScaler * scalers.VirginScaler
+	scaledRarity := math.Round(((baseRarity * totalScalars * 100) * 100)) / 100
 	log.Println("Rarity index: " + fmt.Sprintf("%f", (scaledRarity)))
 
 	return structs.RarityResult{
@@ -46,7 +46,6 @@ func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.
 		MatchingHands:         matchingHandsCount,
 		NoColorMismatchScaler: scalers.NoColorMismatchScaler,
 		ColorMismatchScaler:   scalers.ColorMismatchScaler,
-		DegenScaler:           scalers.DegenScaler,
 		VirginScaler:          scalers.VirginScaler,
 		BaseRarity:            baseRarity,
 		ScaledRarity:          scaledRarity,
@@ -77,16 +76,12 @@ func parseAttributes(attributes []structs.Attribute) (structs.Attribute, structs
 
 // getScalers calculates the eligible scalers for the polymorph
 func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, isVirgin bool, isColoredSet bool) structs.Scalers {
-	var noColorMismatchScaler, colorMismatchScaler, degenScaler, virginScaler float64 = 1, 1, 1, 1
+	var noColorMismatchScaler, colorMismatchScaler, virginScaler float64 = 1, 1, 1
 
 	if hasCompletedSet && isColoredSet && colorMismatches == 0 {
 		noColorMismatchScaler = config.NO_COLOR_MISMATCH_SCALER
 	} else if hasCompletedSet && isColoredSet && colorMismatches != 0 {
 		colorMismatchScaler = config.COLOR_MISMATCH_SCALER
-	}
-
-	if setName == "Party Degen" {
-		degenScaler = config.DEGEN_SCALER
 	}
 
 	if isVirgin {
@@ -97,7 +92,6 @@ func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, i
 		ColorMismatchScaler:   colorMismatchScaler,
 		NoColorMismatchScaler: noColorMismatchScaler,
 		VirginScaler:          virginScaler,
-		DegenScaler:           degenScaler,
 	}
 }
 

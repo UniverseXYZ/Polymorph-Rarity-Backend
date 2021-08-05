@@ -12,7 +12,6 @@ type RarityResult struct {
 	MatchingHands         int
 	NoColorMismatchScaler float64
 	ColorMismatchScaler   float64
-	DegenScaler           float64
 	VirginScaler          float64
 	BaseRarity            float64
 	ScaledRarity          float64
