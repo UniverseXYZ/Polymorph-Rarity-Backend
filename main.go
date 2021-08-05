@@ -120,10 +120,11 @@ func main() {
 		configService,
 		dbInfo)
 
-	startAPI()
+	// startAPI()
 }
 
 // startAPI registers the endpoints for API and listens for requests
+// API has moved to a cloud function due to bad response times
 func startAPI() {
 	// Routine two: API -> Should start after deploy?
 	app := fiber.New()
