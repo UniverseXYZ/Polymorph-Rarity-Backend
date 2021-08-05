@@ -4,8 +4,8 @@ import "rarity-backend/structs"
 
 var SCRAMBLE_COST float32 = 0.01
 
-var NO_COLOR_MISMATCH_SCALER float64 = 3
-var COLOR_MISMATCH_SCALER float64 = 1.5
+var NO_COLOR_MISMATCH_SCALER float64 = 1.5
+var COLOR_MISMATCH_SCALER float64 = 0.8
 var DEGEN_SCALER float64 = 0.5
 var VIRGIN_SCALER float64 = 1.5
 var MISMATCH_PENALTY float64 = 0.5
