@@ -30,7 +30,7 @@ func CalulateRarityScore(attributes []structs.Attribute, isVirgin bool) structs.
 
 	baseRarity := math.Pow(2, mainSetCount-mismatchPenalty+secSetBonus)
 
-	totalScalars := scalers.NoColorMismatchScaler * scalers.ColorMismatchScaler * handsScaler * scalers.VirginScaler
+	totalScalars := scalers.NoColorMismatchScaler * handsScaler * scalers.VirginScaler
 	scaledRarity := math.Round(((baseRarity * totalScalars * 100) * 100)) / 100
 	log.Println("Rarity index: " + fmt.Sprintf("%f", (scaledRarity)))
 
