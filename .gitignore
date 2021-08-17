@@ -1,3 +1,7 @@
 .env
 .env.dev
 go.sum
+.env.prod
+rarity-backend
+credentials.json
+go.sum
