@@ -8,19 +8,21 @@ var NO_COLOR_MISMATCH_SCALER float64 = 1.5
 var COLOR_MISMATCH_SCALER float64 = 0.95
 var DEGEN_SCALER float64 = 0.5
 var VIRGIN_SCALER float64 = 1.5
-var MISMATCH_PENALTY float64 = 0.05
+var MISMATCH_PENALTY float64 = 0.1
 var SECONDARY_SET_SCALER float64 = 0.5
 
-var NO_SET_TWO_MATCHING_HANDS_SCALER float64 = 1.1
-var NO_SET_TWO_SAME_MATCHING_HANDS_SCALER float64 = 1.2
-var INCOMPLETE_SET_ONE_MATCHING_HANDS_SCALER float64 = 1.3
-var INCOMPLETE_SET_TWO_MATCHING_HANDS_SCALER float64 = 1.4
-var INCOMPLETE_SET_TWO_SAME_MATCHING_HANDS_SCALER float64 = 1.5
-var HAS_SET_ONE_MATCHING_HANDS_SCALER float64 = 1.6
-var HAS_SET_TWO_MATCHING_HANDS_SCALER float64 = 1.7
-var HAS_SET_TWO_SAME_MATCHING_HANDS_SCALER float64 = 1.8
+// var NO_SET_TWO_MATCHING_HANDS_SCALER float64 = 1.1
+var NO_SET_TWO_SAME_MATCHING_HANDS_SCALER float64 = 1.3
 
-var FootbalSetWithColors = structs.ColorSet{Name: "Football Star", Colors: []string{"Red", "White", "Yellow"}}
+// var INCOMPLETE_SET_ONE_MATCHING_HANDS_SCALER float64 = 1.3
+// var INCOMPLETE_SET_TWO_MATCHING_HANDS_SCALER float64 = 1.4
+var INCOMPLETE_SET_TWO_SAME_MATCHING_HANDS_SCALER float64 = 1.5
+
+// var HAS_SET_ONE_MATCHING_HANDS_SCALER float64 = 1.6
+// var HAS_SET_TWO_MATCHING_HANDS_SCALER float64 = 1.7
+var HAS_SET_TWO_SAME_MATCHING_HANDS_SCALER float64 = 1.5
+
+var FootbalSetWithColors = structs.ColorSet{Name: "Football Star", Colors: []string{"Red", "Grey", "White", "White/Yellow"}}
 var SpartanSetWithColors = structs.ColorSet{Name: "Spartan", Colors: []string{"Platinum", "Silver", "Gold", "Brown"}}
 var KnightSetWithColors = structs.ColorSet{Name: "Knight", Colors: []string{"Silver", "Golden"}}
 
