@@ -99,13 +99,13 @@ func getScalers(hasCompletedSet bool, setName string, colorMismatches float64, i
 //
 // Color sets can be found in rarityConfig.go
 func getColorMismatches(attributes []structs.Attribute, longestSet string) (bool, float64) {
-	var correctSet structs.ColorSet
+	var colorSet structs.ColorSet
 	if strings.Contains(longestSet, config.FootbalSetWithColors.Name) {
-		correctSet = config.FootbalSetWithColors
+		colorSet = config.FootbalSetWithColors
 	} else if strings.Contains(longestSet, config.SpartanSetWithColors.Name) {
-		correctSet = config.SpartanSetWithColors
+		colorSet = config.SpartanSetWithColors
 	} else if strings.Contains(longestSet, config.KnightSetWithColors.Name) {
-		correctSet = config.KnightSetWithColors
+		colorSet = config.KnightSetWithColors
 	} else {
 		// Set is without colors
 		return false, 0
@@ -114,7 +114,7 @@ func getColorMismatches(attributes []structs.Attribute, longestSet string) (bool
 	var totalColorsOccurances, primaryColorOccurances float64
 
 	for _, attr := range attributes {
-		for _, color := range correctSet.Colors {
+		for _, color := range colorSet.Colors {
 			if strings.Contains(attr.Value, color) && helpers.StringInSlice(longestSet, attr.Sets) {
 				totalColorsOccurances++
 				colorMap[color]++
@@ -123,13 +123,43 @@ func getColorMismatches(attributes []structs.Attribute, longestSet string) (bool
 		}
 	}
 
-	for _, v := range colorMap {
+	var primaryColor string
+
+	for k, v := range colorMap {
 		if primaryColorOccurances < v {
 			primaryColorOccurances = v
+			primaryColor = k
 		}
 	}
 
 	colorMismatches := totalColorsOccurances - primaryColorOccurances
+
+	if colorSet.Name == "Spartan" || colorSet.Name == "Knight" {
+		if primaryColor == "Silver" || primaryColor == "Golden" {
+			// Silver and Golden Spartan sets have Brown Footwear. That's why we convert the brown to silver in order to detect correct number of color mismatches
+			if colorMap["Brown"] != 0 {
+				colorMismatches--
+			}
+		}
+	} else if colorSet.Name == "Football Star" {
+		// We have to manually iterate over the attributes and count each attribute towards a set to be able to count the color mismatches
+		awayAttrCount, homeAttrCount := 0, 0
+		for _, attr := range attributes {
+			switch attr.Value {
+			case "Red Football Helmet", "White Football Jersey", "Red Football Pants", "White/Yellow Football Cleats":
+				awayAttrCount++
+			case "Grey Football Helmet", "Red Football Jersey", "Grey Football Pants", "Red Football Cleats":
+				homeAttrCount++
+			}
+		}
+		if homeAttrCount == awayAttrCount {
+			colorMismatches = float64(homeAttrCount)
+		} else if homeAttrCount > awayAttrCount {
+			colorMismatches = float64(homeAttrCount - awayAttrCount)
+		} else {
+			colorMismatches = float64(awayAttrCount - homeAttrCount)
+		}
+	}
 
 	return true, colorMismatches
 }

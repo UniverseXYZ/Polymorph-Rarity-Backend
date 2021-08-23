@@ -20,7 +20,7 @@ var HAS_SET_ONE_MATCHING_HANDS_SCALER float64 = 1.6
 var HAS_SET_TWO_MATCHING_HANDS_SCALER float64 = 1.7
 var HAS_SET_TWO_SAME_MATCHING_HANDS_SCALER float64 = 1.8
 
-var FootbalSetWithColors = structs.ColorSet{Name: "Football Star", Colors: []string{"Red", "White", "Yellow"}}
+var FootbalSetWithColors = structs.ColorSet{Name: "Football Star", Colors: []string{"Red", "Grey", "White", "White/Yellow"}}
 var SpartanSetWithColors = structs.ColorSet{Name: "Spartan", Colors: []string{"Platinum", "Silver", "Gold", "Brown"}}
 var KnightSetWithColors = structs.ColorSet{Name: "Knight", Colors: []string{"Silver", "Golden"}}
 

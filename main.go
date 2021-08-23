@@ -151,6 +151,124 @@ func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *s
 }
 
 // func main() {
+// correctSpartanSet := []structs.Attribute{
+// 	{
+// 		TraitType: "Eyewear",
+// 		Value:     "No Eyewear",
+// 		Sets:      []string{"Naked"},
+// 	},
+// 	{
+// 		TraitType: "Footwear",
+// 		Value:     "Brown Spartan Sandals",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Headwear",
+// 		Value:     "Silver Spartan Helmet",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Torso",
+// 		Value:     "Silver Spartan Armor",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Pants",
+// 		Value:     "Spartan Pants",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Left Hand",
+// 		Value:     "Golden Spartan Sword",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Right Hand",
+// 		Value:     "Bow & Arrow",
+// 		Sets:      []string{"Ninja", "Samurai", "Spartan", "Knight"},
+// 	},
+// }
+
+// correctYoungFootballStarSet := []structs.Attribute{
+// 	{
+// 		TraitType: "Eyewear",
+// 		Value:     "No Eyewear",
+// 		Sets:      []string{"Naked"},
+// 	},
+// 	{
+// 		TraitType: "Footwear",
+// 		Value:     "White/Yellow Football Cleats",
+// 		Sets:      []string{"Football Star"},
+// 	},
+// 	{
+// 		TraitType: "Headwear",
+// 		Value:     "Red Football Helmet",
+// 		Sets:      []string{"Football Star"},
+// 	},
+// 	{
+// 		TraitType: "Torso",
+// 		Value:     "White Football Jersey",
+// 		Sets:      []string{"Football Star"},
+// 	},
+// 	{
+// 		TraitType: "Pants",
+// 		Value:     "Red Football Pants",
+// 		Sets:      []string{"Football Star"},
+// 	},
+// 	{
+// 		TraitType: "Left Hand",
+// 		Value:     "Golden Spartan Sword",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Right Hand",
+// 		Value:     "Bow & Arrow",
+// 		Sets:      []string{"Ninja", "Samurai", "Spartan", "Knight"},
+// 	},
+// }
+
+// mixedFootballStarSet := []structs.Attribute{
+// 	{
+// 		TraitType: "Eyewear",
+// 		Value:     "No Eyewear",
+// 		Sets:      []string{"Naked"},
+// 	},
+// 	{
+// 		TraitType: "Footwear",
+// 		Value:     "White/Yellow Football Cleats",
+// 		Sets:      []string{"Football Star"},
+// 	},
+// 	{
+// 		TraitType: "Headwear",
+// 		Value:     "Red Football Helmet",
+// 		Sets:      []string{"Football Star"},
+// 	},
+// 	{
+// 		TraitType: "Torso",
+// 		Value:     "Red Football Jersey",
+// 		Sets:      []string{"Football Star"},
+// 	},
+// 	{
+// 		TraitType: "Pants",
+// 		Value:     "Grey Football Pants",
+// 		Sets:      []string{"Football Star"},
+// 	},
+// 	{
+// 		TraitType: "Left Hand",
+// 		Value:     "Golden Spartan Sword",
+// 		Sets:      []string{"Spartan"},
+// 	},
+// 	{
+// 		TraitType: "Right Hand",
+// 		Value:     "Bow & Arrow",
+// 		Sets:      []string{"Ninja", "Samurai", "Spartan", "Knight"},
+// 	},
+// }
+
+// services.CalulateRarityScore(mixedFootballStarSet, false)
+// }
+
+// func main() {
 // // Rarity: 48
 // mismatchedSpartanSet := []metadata.Attribute{
 // 	{
