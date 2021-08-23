@@ -35,11 +35,12 @@ func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 		lastChainBlockNumberInt64 = endBlock
 	} else {
 		lastChainBlockHeader, err := ethClient.Client.HeaderByNumber(context.Background(), nil)
+		if err != nil {
+			log.Println(err)
+			lastChainBlockNumberInt64 = int64(lastProcessedBlockNumber)
+		}
 		lastChainBlockNumberInt64 = int64(lastChainBlockHeader.Number.Uint64())
 
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 
 	ethLogs, err := ethClient.Client.FilterLogs(context.Background(), ethereum.FilterQuery{
