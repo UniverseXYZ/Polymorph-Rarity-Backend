@@ -37,14 +37,24 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 		eventSig := ethLog.Topics[0].String()
 		switch eventSig {
 		case constants.MintEvent.Signature:
-			wg.Add(1)
-			go processMint(ethLog, &wg, contractAbi, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, &mintsMutex)
+			if !txState[ethLog.TxHash.Hex()][ethLog.Index] {
+				txMap := make(map[uint]bool)
+				txMap[ethLog.Index] = true
+				txState[ethLog.TxHash.Hex()] = txMap
+
+				wg.Add(1)
+				go processMint(ethLog, &wg, contractAbi, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, &mintsMutex)
+			}
 		}
 	}
 
 	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
 		handlers.PersistMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
+	}
+
+	if len(mintsMutex.Transactions) > 0 {
+		handlers.SaveTransactions(mintsMutex.Transactions, dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
 	}
 
 	// Sort polymorphs
@@ -94,9 +104,29 @@ func processMint(mintEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, c
 		mintsMutex.Mints = append(mintsMutex.Mints, mintEntity)
 		mintsMutex.TokensMap[event.MorphId.String()] = true
 		var bdoc interface{}
-		json, _ := json.Marshal(mintEntity)
-		bson.UnmarshalExtJSON(json, false, &bdoc)
+		jsonEntity, _ := json.Marshal(mintEntity)
+		bson.UnmarshalExtJSON(jsonEntity, false, &bdoc)
 		mintsMutex.Documents = append(mintsMutex.Documents, bdoc)
+
+		transaction := models.Transaction{
+			BlockNumber: mintEvent.BlockNumber,
+			TxIndex:     mintEvent.TxIndex,
+			TxHash:      mintEvent.TxHash.Hex(),
+			LogIndex:    mintEvent.Index,
+		}
+		var txBdoc interface{}
+		jsonTx, _ := json.Marshal(transaction)
+		bson.UnmarshalExtJSON(jsonTx, false, &txBdoc)
+
+		mintsMutex.Transactions = append(mintsMutex.Transactions, txBdoc)
+
+		// go handlers.SaveTransaction(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName, models.Transaction{
+		// 	BlockNumber: ethLog.BlockNumber,
+		// 	TxIndex:     ethLog.TxIndex,
+		// 	TxHash:      ethLog.TxHash.Hex(),
+		// 	LogIndex:    ethLog.Index,
+		// })
+
 	} else {
 		log.Println("Empty gene mint event for morph id: " + event.MorphId.String())
 	}

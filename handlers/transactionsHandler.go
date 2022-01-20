@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"rarity-backend/db"
 	"rarity-backend/models"
@@ -59,4 +60,20 @@ func SaveTransaction(polymorphDBName string, transactionsColl string, transactio
 	}
 
 	log.Printf("\nInserted new transaction in DB:\ntxHash: %v\nLogIndex: %v\n", transaction.TxHash, transaction.LogIndex)
+}
+
+// PersistMintEvents persists all the processed mints in the database in one go.
+//
+// Bulk writing to database saves a lot of time
+func SaveTransactions(bsonDocs []interface{}, polymorphDBName string, transactionsCollectionName string) {
+	collection, err := db.GetMongoDbCollection(polymorphDBName, transactionsCollectionName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	res, err := collection.InsertMany(context.Background(), bsonDocs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(fmt.Sprintf("Inserted %v transactions in DB", len(res.InsertedIDs)))
 }

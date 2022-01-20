@@ -2,9 +2,11 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -23,13 +25,22 @@ var instance *mongo.Client
 func GetDbConnection() *mongo.Client {
 	once.Do(func() {
 		client := connectToDb()
-		checkConnectionAndRestore(client)
+		// checkConnectionAndRestore(client)
 		instance = client
 	})
 
-	checkConnectionAndRestore(instance)
+	// checkConnectionAndRestore(instance)
 	return instance
 }
+const (
+	// Timeout operations after N seconds
+	connectTimeout  = 5
+	queryTimeout    = 30
+	
+	// Which instances to read from
+	readPreference           = "secondaryPreferred"
+	connectionStringTemplate = "mongodb://%s:%s@%s/test?replicaSet=rs0&readpreference=%s&connect=direct&sslInsecure=true&retryWrites=false"
+)
 
 // connectToDb retrieves db config from .env and tries to conenct to the database.
 func connectToDb() *mongo.Client {
@@ -52,12 +63,28 @@ func connectToDb() *mongo.Client {
 		log.Fatalln("Missing db url in .env")
 	}
 
-	connectionStr := "mongodb+srv://" + username + ":" + password + "@" + dbUrl + "?retryWrites=true&w=majority"
+	connectionURI := fmt.Sprintf(connectionStringTemplate, username, password, dbUrl, readPreference)
 
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(connectionStr))
+	client, err := mongo.NewClient(options.Client().ApplyURI(connectionURI))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout*time.Second)
+	defer cancel()
+
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatalf("Failed to connect to cluster: %v", err)
+	}
+
+	// Force a connection to verify our connection string
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Fatalf("Failed to ping cluster: %v", err)
+	}
+	
+	fmt.Println("Connected to DocumentDB!")
 
 	return client
 }

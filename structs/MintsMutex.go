@@ -6,8 +6,9 @@ import (
 )
 
 type MintsMutex struct {
-	Mutex     sync.Mutex
-	Mints     []models.PolymorphEntity
-	TokensMap map[string]bool
-	Documents []interface{}
+	Mutex        sync.Mutex
+	Mints        []models.PolymorphEntity
+	TokensMap    map[string]bool
+	Documents    []interface{}
+	Transactions []interface{}
 }
