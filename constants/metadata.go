@@ -1,6 +1,9 @@
 package constants
 
-const POLYMORPH_IMAGE_URL string = "https://storage.googleapis.com/polymorph-images/"
+const POLYMORPH_IMAGE_URL string = "https://storage.googleapis.com/polymorphs-v1-test/"
+const IMAGES_METADATA_URL string = "https://us-central1-polymorphmetadata.cloudfunctions.net/images-function-v1?id="
+const GCLOUD_UPLOAD_BUCKET_NAME = "polymorphs-v1-test"
+const GCLOUD_SOURCE_BUCKET_NAME = "polymorph-source-images"
 const EXTERNAL_URL string = "https://universe.xyz/polymorphs/"
 const GENES_COUNT = 9
 const BACKGROUND_GENE_COUNT int = 12

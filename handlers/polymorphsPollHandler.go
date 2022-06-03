@@ -3,7 +3,9 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
 	"log"
+	"os"
 	"rarity-backend/constants"
 	"rarity-backend/db"
 	"rarity-backend/models"
@@ -77,10 +79,66 @@ func PersistMintEvents(bsonDocs []interface{}, polymorphDBName string, rarityCol
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	res, err := collection.InsertMany(context.Background(), bsonDocs)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println(fmt.Sprintf("Inserted %v polymorphs in DB", len(res.InsertedIDs)))
+}
+
+// DeleteV1Rarity Deletes all polymorph records from all V1 collections (after burnToMint, all info about v1 should disappear)
+func DeleteV1Rarity(polymorphDBName string, newlyMinted *[]types.Log) {
+
+	raritiesV1 := os.Getenv("RARITIES_V1")
+	historyV1 := os.Getenv("HISTORY_V1")
+	morphCostV1 := os.Getenv("MORPH_COST_V1")
+
+	collectionRaritiesV1, err := db.GetMongoDbCollection(polymorphDBName, raritiesV1)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Delete ids of newly minted from V1 Collections
+	for i := 0; i < len(*newlyMinted); i++ {
+		currentPolymorphIdToDelete := (*newlyMinted)[i].Topics[1].Big().Int64()
+		filter := bson.M{"tokenid": currentPolymorphIdToDelete}
+		_, err = collectionRaritiesV1.DeleteMany(context.Background(), filter)
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			log.Println(fmt.Sprintf("Deleted burnToMinted polymorph %v record from rarities-v1", currentPolymorphIdToDelete))
+		}
+	}
+
+	// Delete from History
+	historyV1Collection, err := db.GetMongoDbCollection(polymorphDBName, historyV1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i := 0; i < len(*newlyMinted); i++ {
+		currentPolymorphIdToDelete := (*newlyMinted)[i].Topics[1].Big().Int64()
+		filter := bson.M{"tokenid": currentPolymorphIdToDelete}
+		_, err = historyV1Collection.DeleteMany(context.Background(), filter)
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			log.Println(fmt.Sprintf("Deleted burnToMinted polymorph %v record from history-v1", currentPolymorphIdToDelete))
+		}
+	}
+
+	// Delete from Morph-Cost-v1
+	morphCostV1Collection, err := db.GetMongoDbCollection(polymorphDBName, morphCostV1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i := 0; i < len(*newlyMinted); i++ {
+		currentPolymorphIdToDelete := (*newlyMinted)[i].Topics[1].Big().Int64()
+		filter := bson.M{"tokenid": (*newlyMinted)[i].Topics[1].Big().Int64()}
+		_, err = morphCostV1Collection.DeleteMany(context.Background(), filter)
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			log.Println(fmt.Sprintf("Deleted burnToMinted polymorph %v record from morph-cost-v1", currentPolymorphIdToDelete))
+		}
+	}
 }

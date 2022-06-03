@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"log"
 	"net/http"
+	"rarity-backend/constants"
 	"strings"
 
 	"cloud.google.com/go/storage"
@@ -14,17 +15,15 @@ import (
 )
 
 const IMG_SIZE = 4000
-const GCLOUD_UPLOAD_BUCKET_NAME = "polymorph-images"
-const GCLOUD_SOURCE_BUCKET_NAME = "polymorph-source-images"
 
 func CheckImageAndCreate(imageURL string, genes []string) {
-	imageExists := imageExists(imageURL)
+	imageExists := ImageExists(imageURL)
 	if !imageExists {
 		generateAndSaveImage(genes)
 	}
 }
 
-func imageExists(imageURL string) bool {
+func ImageExists(imageURL string) bool {
 	resp, err := http.Get(imageURL)
 	if err != nil {
 		// log.Fatalln(err)
@@ -71,7 +70,7 @@ func combineRemoteImages(bucket *storage.BucketHandle, basePath string, overlayP
 	return dst, nil
 }
 
-func reverseGenesOrder(genes []string) []string {
+func ReverseGenesOrder(genes []string) []string {
 	res := make([]string, 0, len(genes))
 	for i := len(genes) - 1; i >= 0; i-- {
 		res = append(res, genes[i])
@@ -88,7 +87,7 @@ func saveToGCloud(i *image.NRGBA, name string) {
 	}
 	defer client.Close()
 
-	bucket := client.Bucket(GCLOUD_UPLOAD_BUCKET_NAME).Object(name).NewWriter(ctx)
+	bucket := client.Bucket(constants.GCLOUD_UPLOAD_BUCKET_NAME).Object(name).NewWriter(ctx)
 	// f, err := imaging.FormatFromFilename(name)
 	// if err != nil {
 	// 	log.Errorf("Format from filename: %v", err)
@@ -107,7 +106,7 @@ func saveToGCloud(i *image.NRGBA, name string) {
 
 func generateAndSaveImage(genes []string) {
 	// Reverse
-	revGenes := reverseGenesOrder(genes)
+	revGenes := ReverseGenesOrder(genes)
 
 	f := make([]string, len(genes))
 
@@ -123,7 +122,7 @@ func generateAndSaveImage(genes []string) {
 	}
 	defer client.Close()
 
-	bucket := client.Bucket(GCLOUD_SOURCE_BUCKET_NAME)
+	bucket := client.Bucket(constants.GCLOUD_SOURCE_BUCKET_NAME)
 
 	i, err := combineRemoteImages(bucket, f[0], f[1:]...)
 	if err != nil {

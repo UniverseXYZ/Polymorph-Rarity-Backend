@@ -59,7 +59,7 @@ func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 		go saveToEventLogMutex(ethLogs, elm, wg)
 	}
 	wg.Wait()
-	return uint64(lastChainBlockNumberInt64)
+	return uint64(lastChainBlockNumberInt64) + 1
 }
 
 // saveToEventLogMutex concurrently saves mint and morph events an array which will be processed after all events have been filtered for these events.

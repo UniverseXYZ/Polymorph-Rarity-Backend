@@ -32,11 +32,12 @@ func GetDbConnection() *mongo.Client {
 	// checkConnectionAndRestore(instance)
 	return instance
 }
+
 const (
 	// Timeout operations after N seconds
-	connectTimeout  = 5
-	queryTimeout    = 30
-	
+	connectTimeout = 5
+	queryTimeout   = 30
+
 	// Which instances to read from
 	readPreference           = "secondaryPreferred"
 	connectionStringTemplate = "mongodb://%s:%s@%s/test?replicaSet=rs0&readpreference=%s&connect=direct&sslInsecure=true&retryWrites=false"
@@ -63,9 +64,11 @@ func connectToDb() *mongo.Client {
 		log.Fatalln("Missing db url in .env")
 	}
 
-	connectionURI := fmt.Sprintf(connectionStringTemplate, username, password, dbUrl, readPreference)
+	// connectionURI := fmt.Sprintf(connectionStringTemplate, username, password, dbUrl, readPreference)
 
-	client, err := mongo.NewClient(options.Client().ApplyURI(connectionURI))
+	connectionStr := "mongodb+srv://" + username + ":" + password + "@" + dbUrl + "?retryWrites=true&w=majority"
+
+	client, err := mongo.NewClient(options.Client().ApplyURI(connectionStr))
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
@@ -83,7 +86,7 @@ func connectToDb() *mongo.Client {
 	if err != nil {
 		log.Fatalf("Failed to ping cluster: %v", err)
 	}
-	
+
 	fmt.Println("Connected to DocumentDB!")
 
 	return client

@@ -3,8 +3,10 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/big"
+	"net/http"
 	"rarity-backend/constants"
 	"rarity-backend/dlt"
 	"rarity-backend/handlers"
@@ -13,6 +15,7 @@ import (
 	"rarity-backend/models"
 	"rarity-backend/store"
 	"rarity-backend/structs"
+	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -32,25 +35,31 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 
 	lastProcessedBlockNumber := collectEvents(ethClient, contractAbi, instance, address, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, dbInfo.BlocksCollectionName, 0, 0, &wg, &eventLogsMutex)
 
+	mintsLogs := make([]types.Log, 0)
+
 	// Persist mints
 	for _, ethLog := range eventLogsMutex.EventLogs {
 		eventSig := ethLog.Topics[0].String()
 		switch eventSig {
 		case constants.MintEvent.Signature:
-			if !txState[ethLog.TxHash.Hex()][ethLog.Index] {
-				txMap := make(map[uint]bool)
-				txMap[ethLog.Index] = true
-				txState[ethLog.TxHash.Hex()] = txMap
-
-				wg.Add(1)
-				go processMint(ethLog, &wg, contractAbi, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, &mintsMutex)
-			}
+			//if !txState[ethLog.TxHash.Hex()][ethLog.Index] {
+			//	txMap := make(map[uint]bool)
+			//	txMap[ethLog.Index] = true
+			//	txState[ethLog.TxHash.Hex()] = txMap
+			//
+			//
+			//}
+			wg.Add(1)
+			go processMint(ethLog, &wg, contractAbi, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, &mintsMutex)
+			mintsLogs = append(mintsLogs, ethLog)
 		}
 	}
 
 	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
+		fmt.Println(mintsMutex.Documents)
 		handlers.PersistMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
+		handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs)
 	}
 
 	if len(mintsMutex.Transactions) > 0 {
@@ -247,6 +256,30 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	}
 	mEvent.NewGene = result
 
+	g := metadata.Genome(mEvent.NewGene.String())
+	genes := g.Genes()
+
+	revGenes := metadata.ReverseGenesOrder(genes)
+
+	b := strings.Builder{}
+	b.WriteString(constants.POLYMORPH_IMAGE_URL)
+
+	for _, gene := range revGenes {
+		b.WriteString(gene)
+	}
+	b.WriteString(".jpg")
+
+	// Currently, the front-end fetches imageURLs from the rarity-backend instead of from the Metadata API
+	// So if the image doesn't exist, we query the metadata API to get it generated
+	if !metadata.ImageExists(b.String()) {
+		_, err := http.Get(constants.IMAGES_METADATA_URL + mId.String())
+		if err != nil {
+			log.Fatalf("Couldn't query images function. Original error: %v", err)
+		} else {
+			fmt.Println("Queried Metadata with link: ", constants.IMAGES_METADATA_URL+mId.String())
+		}
+	}
+
 	newAttr, oldAttr := structs.Attribute{}, structs.Attribute{}
 	geneIdx, geneDifferences := helpers.DetectGeneDifferences(oldGenesMap[mId.String()], mEvent.NewGene.String())
 	if geneDifferences <= 2 {
@@ -260,7 +293,7 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	go handlers.SavePolymorphHistory(polySnapshot, dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
 	go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
 
-	g := metadata.Genome(mEvent.NewGene.String())
+	g = metadata.Genome(mEvent.NewGene.String())
 	metadata := (&g).Metadata(mId.String(), configService)
 
 	rarityResult := CalulateRarityScore(metadata.Attributes, false)

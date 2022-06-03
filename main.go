@@ -76,7 +76,7 @@ func initResources() (*dlt.EthereumClient, abi.ABI, *store.Store, string, *struc
 		log.Fatal("Missing morph cost collection name in .env")
 	}
 
-	contractAbi, err := abi.JSON(strings.NewReader(string(store.StoreABI)))
+	contractAbi, err := abi.JSON(strings.NewReader(string(store.PolymorphRootMetaData.ABI)))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func startAPI() {
 	// app.Get("/morphs/", handlers.GetPolymorphs)
 	// app.Get("/morphs/:id", handlers.GetPolymorphById)
 	// app.Get("/morphs/history/:id", handlers.GetPolymorphHistory)
-	log.Fatal(app.Listen(8000))
+	log.Fatal(app.Listen(1222))
 }
 
 // recoverAndPoll loads transactions and morph cost state in memory from the database and initiates polling mechanism.
