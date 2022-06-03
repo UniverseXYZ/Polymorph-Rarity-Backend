@@ -265,19 +265,34 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	b := strings.Builder{}
 	b.WriteString(constants.POLYMORPH_IMAGE_URL)
 
+	d := strings.Builder{}
+	d.WriteString(constants.POLYMORPH_IMAGE_URL_3D)
+
 	for _, gene := range revGenes {
+		b.WriteString(gene)
 		b.WriteString(gene)
 	}
 	b.WriteString(".jpg")
+	d.WriteString(".jpg")
 
 	// Currently, the front-end fetches imageURLs from the rarity-backend instead of from the Metadata API
-	// So if the image doesn't exist, we query the metadataPoly API to get it generated
+	// So if the image doesn't exist, we query the V1 metadataPoly API to get it generated
 	if !metadata.ImageExists(b.String()) {
-		_, err := http.Get(constants.IMAGES_METADATA_URL + mId.String())
+		_, err := http.Get(constants.IMAGES_METADATA_URL_V1 + mId.String())
 		if err != nil {
 			log.Fatalf("Couldn't query images function. Original error: %v", err)
 		} else {
-			fmt.Println("Queried Metadata with link: ", constants.IMAGES_METADATA_URL+mId.String())
+			fmt.Println("Queried V1 Metadata with link: ", constants.IMAGES_METADATA_URL_V1+mId.String())
+		}
+	}
+
+	// query the V2 metadataPoly API to get it generated if image does not exist
+	if !metadata.ImageExists(d.String()) {
+		_, err = http.Get(constants.IMAGES_METADATA_URL_V2 + mId.String())
+		if err != nil {
+			log.Fatalf("Couldn't query images function. Original error: %v", err)
+		} else {
+			fmt.Println("Queried V2 Metadata with link: ", constants.IMAGES_METADATA_URL_V2+mId.String())
 		}
 	}
 

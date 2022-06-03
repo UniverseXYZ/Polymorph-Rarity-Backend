@@ -1,7 +1,9 @@
 package constants
 
 const POLYMORPH_IMAGE_URL string = "https://storage.googleapis.com/polymorphs-v1-test/"
-const IMAGES_METADATA_URL string = "https://us-central1-polymorphmetadata.cloudfunctions.net/images-function-v1?id="
+const POLYMORPH_IMAGE_URL_3D string = "https://storage.googleapis.com/polymorph-images_test/"
+const IMAGES_METADATA_URL_V1 string = "https://us-central1-polymorphmetadata.cloudfunctions.net/images-function-v1?id="
+const IMAGES_METADATA_URL_V2 string = "https://us-central1-polymorphmetadata.cloudfunctions.net/images-function-test?id="
 const GCLOUD_UPLOAD_BUCKET_NAME = "polymorphs-v1-test"
 const GCLOUD_SOURCE_BUCKET_NAME = "polymorph-source-images"
 const EXTERNAL_URL string = "https://universe.xyz/polymorphs/"
