@@ -131,7 +131,8 @@ func startAPI() {
 	// app.Get("/morphs/", handlers.GetPolymorphs)
 	// app.Get("/morphs/:id", handlers.GetPolymorphById)
 	// app.Get("/morphs/history/:id", handlers.GetPolymorphHistory)
-	log.Fatal(app.Listen(1222))
+	apiPORT := os.Getenv("API_PORT")
+	log.Fatal(app.Listen(apiPORT))
 }
 
 // recoverAndPoll loads transactions and morph cost state in memory from the database and initiates polling mechanism.

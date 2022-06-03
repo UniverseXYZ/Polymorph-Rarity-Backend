@@ -57,9 +57,8 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 
 	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
-		fmt.Println(mintsMutex.Documents)
 		handlers.PersistMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
-		handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs)
+		//handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs)
 	}
 
 	if len(mintsMutex.Transactions) > 0 {
@@ -259,6 +258,8 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	g := metadata.Genome(mEvent.NewGene.String())
 	genes := g.Genes()
 
+	log.Println("Newgene: ", mEvent.NewGene.String())
+
 	revGenes := metadata.ReverseGenesOrder(genes)
 
 	b := strings.Builder{}
@@ -270,7 +271,7 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	b.WriteString(".jpg")
 
 	// Currently, the front-end fetches imageURLs from the rarity-backend instead of from the Metadata API
-	// So if the image doesn't exist, we query the metadata API to get it generated
+	// So if the image doesn't exist, we query the metadataPoly API to get it generated
 	if !metadata.ImageExists(b.String()) {
 		_, err := http.Get(constants.IMAGES_METADATA_URL + mId.String())
 		if err != nil {
@@ -294,10 +295,10 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
 
 	g = metadata.Genome(mEvent.NewGene.String())
-	metadata := (&g).Metadata(mId.String(), configService)
+	metadataPoly := (&g).Metadata(mId.String(), configService)
 
-	rarityResult := CalulateRarityScore(metadata.Attributes, false)
-	morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, MorphId: mId}, metadata, false, rarityResult)
+	rarityResult := CalulateRarityScore(metadataPoly.Attributes, false)
+	morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, MorphId: mId}, metadataPoly, false, rarityResult)
 
 	res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, oldGenesMap[mId.String()], geneDifferences)
 	if err != nil {
