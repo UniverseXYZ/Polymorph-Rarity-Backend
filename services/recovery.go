@@ -24,9 +24,15 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+var isProcessing bool = false
+
 // RecoverProcess is the main function which handles the polling and processing of mint and morph events
 func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *structs.ConfigService,
 	dbInfo structs.DBInfo, txState map[string]map[uint]bool, morphCostMap map[string]float32) {
+	if isProcessing {
+		return
+	}
+	isProcessing = true
 	var wg sync.WaitGroup
 	mintsMutex := structs.MintsMutex{TokensMap: make(map[string]bool)}
 	eventLogsMutex := structs.EventLogsMutex{EventLogs: []types.Log{}}
@@ -34,6 +40,8 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	tokenToMorphEvent := make(map[string]types.Log)
 
 	lastProcessedBlockNumber := collectEvents(ethClient, contractAbi, instance, address, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, dbInfo.BlocksCollectionName, 0, 0, &wg, &eventLogsMutex)
+
+	fmt.Println("Last processed block number: ", lastProcessedBlockNumber)
 
 	mintsLogs := make([]types.Log, 0)
 
@@ -57,8 +65,8 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 
 	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
-		handlers.PersistMintEvents(mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
-		//handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs)
+		handlers.PersistMintEvents(&mintsLogs, mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
+		handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs)
 	}
 
 	if len(mintsMutex.Transactions) > 0 {
@@ -91,6 +99,7 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	} else {
 		log.Println(res)
 	}
+	isProcessing = false
 }
 
 // processMint is the core function for processing mint events metadata. It unpacks event data, calculates rarity score, prepares database entity but doesn't persist it
@@ -127,7 +136,8 @@ func processMint(mintEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, c
 		bson.UnmarshalExtJSON(jsonTx, false, &txBdoc)
 
 		mintsMutex.Transactions = append(mintsMutex.Transactions, txBdoc)
-
+		fmt.Println("Mint entity: ", mintEntity)
+		fmt.Println("Docs", mintsMutex.Documents)
 		// go handlers.SaveTransaction(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName, models.Transaction{
 		// 	BlockNumber: ethLog.BlockNumber,
 		// 	TxIndex:     ethLog.TxIndex,
@@ -203,6 +213,8 @@ func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, c
 		rarityResult := CalulateRarityScore(metadataJson.Attributes, false)
 		morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, OldGene: mEvent.OldGene, MorphId: mId}, metadataJson, false, rarityResult)
 
+		fmt.Println("Initial morph entity: ", morphEntity)
+
 		res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, toSaveGene, geneDifferences)
 		if err != nil {
 			log.Println(err)
@@ -257,8 +269,6 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 
 	g := metadata.Genome(mEvent.NewGene.String())
 	genes := g.Genes()
-
-	log.Println("Newgene: ", mEvent.NewGene.String())
 
 	revGenes := metadata.ReverseGenesOrder(genes)
 

@@ -252,19 +252,19 @@ func (g *Genome) Metadata(tokenId string, configService *structs.ConfigService) 
 	imageUrl := strings.Builder{}
 	imageUrl.WriteString(constants.POLYMORPH_IMAGE_URL)
 
-	imageUrl3D := strings.Builder{}
-	imageUrl3D.WriteString(constants.POLYMORPH_IMAGE_URL_3D)
+	// imageUrl3D := strings.Builder{}
+	// imageUrl3D.WriteString(constants.POLYMORPH_IMAGE_URL_3D)
 
 	for _, gene := range genes {
 		imageUrl.WriteString(gene)
-		imageUrl3D.WriteString(gene)
+		// imageUrl3D.WriteString(gene)
 	}
 
 	imageUrl.WriteString(".jpg")
-	imageUrl3D.WriteString(".jpg")
+	// imageUrl3D.WriteString(".jpg")
 
 	m.Image = imageUrl.String()
-	m.Image3D = imageUrl3D.String()
+	// m.Image3D = imageUrl3D.String()
 
 	return m
 }

@@ -4,7 +4,6 @@ type Metadata struct {
 	Description string      `json:"description"`
 	Name        string      `json:"name"`
 	Image       string      `json:"image"`
-	Image3D     string      `json:"image3d"`
 	Attributes  []Attribute `json:"attributes"`
 	ExternalUrl string      `json:"external_url"`
 }

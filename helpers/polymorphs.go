@@ -70,7 +70,6 @@ func CreateMorphEntity(event structs.PolymorphEvent, metadata structs.Metadata, 
 		VirginScaler:          rarityResult.VirginScaler,
 		BaseRarity:            rarityResult.BaseRarity,
 		ImageURL:              metadata.Image,
-		ImageURL3D:            metadata.Image3D,
 		Description:           metadata.Description,
 		Name:                  metadata.Name,
 	}

@@ -29,7 +29,6 @@ type PolymorphEntity struct {
 	VirginScaler          float64  `json:"virginscaler"`
 	BaseRarity            float64  `json:"baserarity"`
 	ImageURL              string   `json:"imageurl"`
-	ImageURL3D            string   `json:"imageurl_3d"`
 	Description           string   `json:"description"`
 	Name                  string   `json:"name"`
 }

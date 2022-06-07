@@ -74,7 +74,7 @@ func PersistMultiplePolymorphs(operations []mongo.WriteModel, polymorphDBName st
 // PersistMintEvents persists all the processed mints in the database in one go.
 //
 // Bulk writing to database saves a lot of time
-func PersistMintEvents(bsonDocs []interface{}, polymorphDBName string, rarityCollectionName string) {
+func PersistMintEvents(logs *[]types.Log, bsonDocs []interface{}, polymorphDBName string, rarityCollectionName string) {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
 		log.Fatal(err)
@@ -82,8 +82,9 @@ func PersistMintEvents(bsonDocs []interface{}, polymorphDBName string, rarityCol
 	res, err := collection.InsertMany(context.Background(), bsonDocs)
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		log.Println(fmt.Sprintf("Inserted %v polymorphs in DB", len(res.InsertedIDs)))
 	}
-	log.Println(fmt.Sprintf("Inserted %v polymorphs in DB", len(res.InsertedIDs)))
 }
 
 // DeleteV1Rarity Deletes all polymorph records from all V1 collections (after burnToMint, all info about v1 should disappear)
