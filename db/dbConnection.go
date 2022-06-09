@@ -23,13 +23,42 @@ var instance *mongo.Client
 //
 // If connection exists, it will return the instance of the database
 func GetDbConnection() *mongo.Client {
-	once.Do(func() {
-		client := connectToDb()
-		// checkConnectionAndRestore(client)
-		instance = client
-	})
+	if instance != nil {
+		log.Println("Fetching existing client")
+		err := instance.Ping(context.Background(), nil)
+		if err == nil {
+			return instance
+		}
+	}
 
-	// checkConnectionAndRestore(instance)
+	username := os.Getenv("USERNAME")
+	password := os.Getenv("PASSWORD")
+	dbUrl := os.Getenv("DB_URL")
+
+	if username == "" {
+		log.Fatal("Missing username in .env")
+	}
+	if password == "" {
+		log.Fatal("Missing password in .env")
+	}
+	if dbUrl == "" {
+		log.Fatal("Missing db url in .env")
+	}
+
+	connectionStr := "mongodb+srv://" + username + ":" + password + "@" + dbUrl + "?retryWrites=true&w=majority"
+	var err error
+	instance, err = mongo.Connect(context.Background(), options.Client().ApplyURI(connectionStr))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// check the connection
+	err = instance.Ping(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Println("Connected to mongo client")
+	}
 	return instance
 }
 
@@ -109,4 +138,18 @@ func GetMongoDbCollection(DbName string, CollectionName string) (*mongo.Collecti
 
 	collection := client.Database(DbName).Collection(CollectionName)
 	return collection, nil
+}
+
+func DisconnectDB() {
+	if instance == nil {
+		return
+	}
+
+	err := instance.Disconnect(context.TODO())
+	if err != nil {
+		fmt.Println("FAILED TO CLOSE Mongo Connection")
+		fmt.Println(err)
+	} else {
+		fmt.Println("Connection to MongoDB closed.")
+	}
 }

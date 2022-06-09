@@ -3,7 +3,9 @@ package main
 import (
 	"log"
 	"os"
+	"rarity-backend/db"
 	"strings"
+	"time"
 
 	"rarity-backend/config"
 	"rarity-backend/dlt"
@@ -15,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber"
-	"github.com/jasonlvhit/gocron"
 	"github.com/joho/godotenv"
 )
 
@@ -145,11 +146,18 @@ func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *s
 	// Build polymorph cost mapping from db
 	morphCostMap := handlers.GetMorphPriceMapping(dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
 	// Recover immediately
-	services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
+	// services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
 	// Routine one: Start polling after recovery
 
-	gocron.Every(15).Second().Do(services.RecoverProcess, ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
-	<-gocron.Start()
+	for {
+		//_, _, _, _, _, dbInfo := initResources()
+		services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
+		db.DisconnectDB()
+		time.Sleep(15 * time.Second)
+	}
+
+	//gocron.Every(15).Second().Do(services.RecoverProcess, ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
+	//<-gocron.Start()
 }
 
 // func main() {
