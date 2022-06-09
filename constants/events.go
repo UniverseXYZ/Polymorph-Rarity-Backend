@@ -12,11 +12,6 @@ var MorphEvent = structs.Event{
 	Signature: "0x8c0bdd7bca83c4e0c810cbecf44bc544a9dc0b9f265664e31ce0ce85f07a052b",
 }
 
-var BurnToMintEvent = structs.Event{
-	Name:      "TokenBurnedAndMinted",
-	Signature: "0xb583e10e1b691f0fec5bb6e5bafd39038a17365ca548d3beb76c082261805583",
-}
-
 // 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef - TRANSFER EVENT
 // 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925 - APPROVAL EVENT
 // 0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31 - APPROVAL FOR ALL EVENT
