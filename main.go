@@ -150,7 +150,6 @@ func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *s
 	// Routine one: Start polling after recovery
 
 	for {
-		//_, _, _, _, _, dbInfo := initResources()
 		services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
 		db.DisconnectDB()
 		time.Sleep(15 * time.Second)

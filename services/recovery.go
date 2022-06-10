@@ -24,7 +24,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-var isProcessing bool = false
+var isProcessing = false
 
 // RecoverProcess is the main function which handles the polling and processing of mint and morph events
 func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *structs.ConfigService,
@@ -66,7 +66,7 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
 		handlers.PersistMintEvents(&mintsLogs, mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
-		handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs)
+		// handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs) // Comment this line if the instance is for V1s
 	}
 
 	if len(mintsMutex.Transactions) > 0 {
@@ -212,8 +212,6 @@ func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, c
 
 		rarityResult := CalulateRarityScore(metadataJson.Attributes, false)
 		morphEntity := helpers.CreateMorphEntity(structs.PolymorphEvent{NewGene: mEvent.NewGene, OldGene: mEvent.OldGene, MorphId: mId}, metadataJson, false, rarityResult)
-
-		fmt.Println("Initial morph entity: ", morphEntity)
 
 		res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, toSaveGene, geneDifferences)
 		if err != nil {
