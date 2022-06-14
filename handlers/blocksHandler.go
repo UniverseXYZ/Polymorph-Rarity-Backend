@@ -63,7 +63,7 @@ func CreateOrUpdateLastProcessedBlock(number uint64, polymorphDBName string, blo
 	_, err = collection.UpdateOne(context.Background(), filter, update, opts)
 
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	return "Successfully persisted new last processed block number: " + strconv.FormatUint(number, 10), nil

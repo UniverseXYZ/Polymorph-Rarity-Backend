@@ -24,15 +24,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-var isProcessing = false
-
 // RecoverProcess is the main function which handles the polling and processing of mint and morph events
 func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *structs.ConfigService,
 	dbInfo structs.DBInfo, txState map[string]map[uint]bool, morphCostMap map[string]float32) {
-	if isProcessing {
-		return
-	}
-	isProcessing = true
 	var wg sync.WaitGroup
 	mintsMutex := structs.MintsMutex{TokensMap: make(map[string]bool)}
 	eventLogsMutex := structs.EventLogsMutex{EventLogs: []types.Log{}}
@@ -95,11 +89,10 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	// Persist block
 	res, err := handlers.CreateOrUpdateLastProcessedBlock(lastProcessedBlockNumber, dbInfo.PolymorphDBName, dbInfo.BlocksCollectionName)
 	if err != nil {
-		log.Println(err)
+		log.Println("err, ", err)
 	} else {
 		log.Println(res)
 	}
-	isProcessing = false
 }
 
 // processMint is the core function for processing mint events metadata. It unpacks event data, calculates rarity score, prepares database entity but doesn't persist it

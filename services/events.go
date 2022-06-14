@@ -34,13 +34,26 @@ func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 	if endBlock != 0 {
 		lastChainBlockNumberInt64 = endBlock
 	} else {
-		lastChainBlockHeader, err := ethClient.Client.HeaderByNumber(context.Background(), nil)
+		latestBlock, err := ethClient.Client.BlockNumber(context.Background())
 		if err != nil {
-			log.Println(err)
+			log.Println("err, ", err)
 			lastChainBlockNumberInt64 = int64(lastProcessedBlockNumber)
 		} else {
-			lastChainBlockNumberInt64 = int64(lastChainBlockHeader.Number.Uint64())
+			lastChainBlockNumberInt64 = int64(latestBlock)
 		}
+	}
+
+	// If by any chance, the network returns a block that is less than the last processed, return
+	if lastProcessedBlockNumber > lastChainBlockNumberInt64 {
+		log.Printf("Last process block number [%d] exceeds last chain block [%d]", lastProcessedBlockNumber, lastChainBlockNumberInt64)
+		return uint64(lastProcessedBlockNumber)
+	}
+
+	// If the blocks that have to be processed are more than 1000, process only 1000 blocks.
+	// Given that the function is in an endless loop, you will process them slowly, but all.
+	if lastChainBlockNumberInt64-lastProcessedBlockNumber > 1000 {
+		log.Println("Splitting blocks into chunks of 1000")
+		lastChainBlockNumberInt64 = lastProcessedBlockNumber + 1000
 	}
 
 	ethLogs, err := ethClient.Client.FilterLogs(context.Background(), ethereum.FilterQuery{
@@ -49,12 +62,10 @@ func collectEvents(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance 
 		Addresses: []common.Address{common.HexToAddress(address)},
 	})
 	if err != nil {
-		log.Println(err)
-		middle := (lastProcessedBlockNumber + lastChainBlockNumberInt64) / 2
-		collectEvents(ethClient, contractAbi, instance, address, configService, polymorphDBName, rarityCollectionName, blocksCollectionName, lastProcessedBlockNumber, middle, wg, elm)
-		collectEvents(ethClient, contractAbi, instance, address, configService, polymorphDBName, rarityCollectionName, blocksCollectionName, middle+1, lastChainBlockNumberInt64, wg, elm)
+		log.Println("err, ", err)
+		return uint64(lastProcessedBlockNumber)
 	} else {
-		log.Printf("Processing blocks %v - %v for polymorph events", lastProcessedBlockNumber, lastChainBlockNumberInt64)
+		log.Printf("Processing blocks [%v] - [%v] for polymorph events", lastProcessedBlockNumber, lastChainBlockNumberInt64)
 		wg.Add(1)
 		go saveToEventLogMutex(ethLogs, elm, wg)
 	}
