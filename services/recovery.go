@@ -60,7 +60,7 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
 		handlers.PersistMintEvents(&mintsLogs, mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
-		// handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs) // Comment this line if the instance is for V1s
+		handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs) // Comment this line if the instance is for V1s
 	}
 
 	if len(mintsMutex.Transactions) > 0 {
@@ -129,8 +129,6 @@ func processMint(mintEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, c
 		bson.UnmarshalExtJSON(jsonTx, false, &txBdoc)
 
 		mintsMutex.Transactions = append(mintsMutex.Transactions, txBdoc)
-		fmt.Println("Mint entity: ", mintEntity)
-		fmt.Println("Docs", mintsMutex.Documents)
 		// go handlers.SaveTransaction(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName, models.Transaction{
 		// 	BlockNumber: ethLog.BlockNumber,
 		// 	TxIndex:     ethLog.TxIndex,
