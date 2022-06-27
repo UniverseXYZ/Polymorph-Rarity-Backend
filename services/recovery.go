@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -26,14 +27,18 @@ import (
 
 // RecoverProcess is the main function which handles the polling and processing of mint and morph events
 func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, address string, configService *structs.ConfigService,
-	dbInfo structs.DBInfo, txState map[string]map[uint]bool, morphCostMap map[string]float32) {
+	dbInfo structs.DBInfo, txState map[string]map[uint]bool, morphCostMap map[string]float32) error {
 	var wg sync.WaitGroup
 	mintsMutex := structs.MintsMutex{TokensMap: make(map[string]bool)}
 	eventLogsMutex := structs.EventLogsMutex{EventLogs: []types.Log{}}
 	genesMap := make(map[string]string)
 	tokenToMorphEvent := make(map[string]types.Log)
 
-	lastProcessedBlockNumber := collectEvents(ethClient, contractAbi, instance, address, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, dbInfo.BlocksCollectionName, 0, 0, &wg, &eventLogsMutex)
+	lastProcessedBlockNumber, err := collectEvents(ethClient, contractAbi, instance, address, configService, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, dbInfo.BlocksCollectionName, 0, 0, &wg, &eventLogsMutex)
+	if err != nil {
+		log.Printf("Error collecting events: $%v", err)
+		return err
+	}
 
 	fmt.Println("Last processed block number: ", lastProcessedBlockNumber)
 
@@ -59,12 +64,21 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 
 	wg.Wait()
 	if len(mintsMutex.Documents) > 0 {
-		handlers.PersistMintEvents(&mintsLogs, mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
-		handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs) // Comment this line if the instance is for V1s
+		errMintEvents := handlers.PersistMintEvents(&mintsLogs, mintsMutex.Documents, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName)
+		if errMintEvents != nil {
+			return errMintEvents
+		}
+		errRarityV1Deletion := handlers.DeleteV1Rarity(dbInfo.PolymorphDBName, &mintsLogs) // Comment this line if the instance is for V1s
+		if errRarityV1Deletion != nil {
+			return errRarityV1Deletion
+		}
 	}
 
 	if len(mintsMutex.Transactions) > 0 {
-		handlers.SaveTransactions(mintsMutex.Transactions, dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
+		err = handlers.SaveTransactions(mintsMutex.Transactions, dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Sort polymorphs
@@ -74,14 +88,21 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 		eventSig := ethLog.Topics[0].String()
 		switch eventSig {
 		case constants.MorphEvent.Signature:
-			processInitialMorphs(ethLog, ethClient, contractAbi, instance, configService, dbInfo, txState, genesMap, tokenToMorphEvent, morphCostMap)
+			err = processInitialMorphs(ethLog, ethClient, contractAbi, instance, configService, dbInfo, txState, genesMap, tokenToMorphEvent, morphCostMap)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// Persist final scrambles
 	for id := range genesMap {
 		ethLog := tokenToMorphEvent[id]
-		processFinalMorphs(ethLog, ethClient, contractAbi, instance, configService, dbInfo, txState, genesMap, morphCostMap)
+		err = processFinalMorphs(ethLog, ethClient, contractAbi, instance, configService, dbInfo, txState, genesMap, morphCostMap)
+		if err != nil {
+			log.Println("Error processing final morphs. ", err)
+			return err
+		}
 	}
 
 	// Persist Ranking
@@ -89,9 +110,11 @@ func RecoverProcess(ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance
 	// Persist block
 	res, err := handlers.CreateOrUpdateLastProcessedBlock(lastProcessedBlockNumber, dbInfo.PolymorphDBName, dbInfo.BlocksCollectionName)
 	if err != nil {
-		log.Println("err, ", err)
+		log.Println("Error creating/updating last processed block, ", err)
+		return err
 	} else {
 		log.Println(res)
+		return nil
 	}
 }
 
@@ -158,11 +181,12 @@ func processMint(mintEvent types.Log, wg *sync.WaitGroup, contractAbi abi.ABI, c
 //
 // !! It's important to note which gene is passed as the new one and which as the old one in order to understand how the logic works.
 func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, dbInfo structs.DBInfo,
-	txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log, morphCostMap map[string]float32) {
+	txState map[string]map[uint]bool, oldGenesMap map[string]string, tokenToMorphEvent map[string]types.Log, morphCostMap map[string]float32) error {
 	var mEvent structs.MorphedEvent
 	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println("Error unpacking into interface when processing initial morphs. ", err)
+		return err
 	}
 
 	// 1 is Morph event
@@ -188,11 +212,27 @@ func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, c
 			}
 			block, err := ethClient.Client.BlockByNumber(context.Background(), big.NewInt(int64(morphEvent.BlockNumber)))
 			if err != nil {
-				log.Println(err)
+				log.Println("Error fetching latest block number. ", err)
+				return err
 			}
 			polySnapshot := helpers.CreateMorphSnapshot(geneDifferences, mId.String(), mEvent.OldGene.String(), oldGenesMap[mId.String()], block.Time(), oldAttr, newAttr, morphCostMap, configService)
-			go handlers.SavePolymorphHistory(polySnapshot, dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
-			go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
+			c1 := make(chan error)
+			c2 := make(chan error)
+			go func() {
+				c1 <- handlers.SavePolymorphHistory(polySnapshot, dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
+			}()
+			go func() {
+				c2 <- handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
+			}()
+
+			if c1 != nil {
+				return errors.New("error saving Polymorph history")
+			}
+			if c2 != nil {
+				return errors.New("error saving Polymorph price")
+			}
+
+			//go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
 		}
 		toSaveGene := oldGenesMap[mId.String()]
 		oldGenesMap[mId.String()] = mEvent.OldGene.String()
@@ -207,6 +247,7 @@ func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, c
 		res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, toSaveGene, geneDifferences)
 		if err != nil {
 			log.Println(err)
+			return err
 		} else {
 			log.Println(res)
 		}
@@ -225,6 +266,7 @@ func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, c
 	} else if txMap[morphEvent.Index] {
 		log.Println("Already processed morph event! Skipping...")
 	}
+	return nil
 }
 
 // processFinalMorphs is has almost the same logic as processInitialMorphs. It's idea is to process all the final mappings in oldGenesMap parameter.
@@ -240,11 +282,12 @@ func processInitialMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, c
 //
 // !! It's important to note which gene is passed as the new one and which as the old one in order to understand how the logic works.
 func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, contractAbi abi.ABI, instance *store.Store, configService *structs.ConfigService, dbInfo structs.DBInfo,
-	txState map[string]map[uint]bool, oldGenesMap map[string]string, morphCostMap map[string]float32) {
+	txState map[string]map[uint]bool, oldGenesMap map[string]string, morphCostMap map[string]float32) error {
 	var mEvent structs.MorphedEvent
 	err := contractAbi.UnpackIntoInterface(&mEvent, constants.MorphEvent.Name, morphEvent.Data)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println("Error unpacking into interface when processing final morphs. ", err)
+		return err
 	}
 
 	mId := morphEvent.Topics[1].Big()
@@ -252,7 +295,8 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	// This will get the newest gene
 	result, err := instance.GeneOf(&bind.CallOpts{}, mId)
 	if err != nil {
-		log.Println(err)
+		log.Println(fmt.Sprintf("Error getting gene of id: %v", mId))
+		return err
 	}
 	mEvent.NewGene = result
 
@@ -279,9 +323,9 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	if !metadata.ImageExists(b.String()) {
 		_, err := http.Get(constants.IMAGES_METADATA_URL_V1 + mId.String())
 		if err != nil {
-			log.Fatalf("Couldn't query images function. Original error: %v", err)
+			log.Printf("Couldn't query images function. Original error: %v\n", err)
 		} else {
-			fmt.Println("Queried V1 Metadata with link: ", constants.IMAGES_METADATA_URL_V1+mId.String())
+			log.Println("Queried V1 Metadata with link: ", constants.IMAGES_METADATA_URL_V1+mId.String())
 		}
 	}
 
@@ -289,9 +333,9 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	if !metadata.ImageExists(d.String()) {
 		_, err = http.Get(constants.IMAGES_METADATA_URL_V2 + mId.String())
 		if err != nil {
-			log.Fatalf("Couldn't query images function. Original error: %v", err)
+			log.Printf("Couldn't query images function. Original error: %v\n", err)
 		} else {
-			fmt.Println("Queried V2 Metadata with link: ", constants.IMAGES_METADATA_URL_V2+mId.String())
+			log.Println("Queried V2 Metadata with link: ", constants.IMAGES_METADATA_URL_V2+mId.String())
 		}
 	}
 
@@ -302,11 +346,30 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 	}
 	block, err := ethClient.Client.HeaderByNumber(context.Background(), big.NewInt(int64(morphEvent.BlockNumber)))
 	if err != nil {
-		log.Println(err)
+		log.Println("Error getting block header. ", err)
+		return err
 	}
 	polySnapshot := helpers.CreateMorphSnapshot(geneDifferences, mId.String(), mEvent.NewGene.String(), oldGenesMap[mId.String()], block.Time, oldAttr, newAttr, morphCostMap, configService)
-	go handlers.SavePolymorphHistory(polySnapshot, dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
-	go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
+	c1 := make(chan error)
+	c2 := make(chan error)
+	go func() {
+		c1 <- handlers.SavePolymorphHistory(polySnapshot, dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
+	}()
+
+	if c1 != nil {
+		return errors.New("error saving morph history when processing final morphs")
+	}
+
+	go func() {
+		c2 <- handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
+	}()
+
+	if c2 != nil {
+		return errors.New("error saving morph price when processing final morphs")
+	}
+
+	// go handlers.SavePolymorphHistory(polySnapshot, dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
+	// go handlers.SaveMorphPrice(models.MorphCost{TokenId: mId.String(), Price: morphCostMap[mId.String()]}, dbInfo.PolymorphDBName, dbInfo.MorphCostCollectionName)
 
 	g = metadata.Genome(mEvent.NewGene.String())
 	metadataPoly := (&g).Metadata(mId.String(), configService)
@@ -316,9 +379,11 @@ func processFinalMorphs(morphEvent types.Log, ethClient *dlt.EthereumClient, con
 
 	res, err := handlers.PersistSinglePolymorph(morphEntity, dbInfo.PolymorphDBName, dbInfo.RarityCollectionName, oldGenesMap[mId.String()], geneDifferences)
 	if err != nil {
-		log.Println(err)
+		log.Println("Error persisting single polymorph. ", err)
+		return err
 	} else {
 		log.Println(res)
+		return nil
 	}
 }
 

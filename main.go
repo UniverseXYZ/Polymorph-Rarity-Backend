@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"os"
-	"rarity-backend/db"
 	"strings"
 	"time"
 
@@ -142,17 +141,28 @@ func startAPI() {
 // Currently the polling timer doesn't wait for the previous one to finish before starting the new countdown
 func recoverAndPoll(ethClient *dlt.EthereumClient, contractAbi abi.ABI, store *store.Store, contractAddress string, configService *structs.ConfigService, dbInfo structs.DBInfo) {
 	// Build transactions scramble transaction mapping from db
-	txMap := handlers.GetTransactionsMapping(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
+	txMap, err := handlers.GetTransactionsMapping(dbInfo.PolymorphDBName, dbInfo.TransactionsCollectionName)
+	if err != nil {
+		log.Println("Error getting transactions mapping initially.")
+	}
+
 	// Build polymorph cost mapping from db
-	morphCostMap := handlers.GetMorphPriceMapping(dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
+	morphCostMap, err := handlers.GetMorphPriceMapping(dbInfo.PolymorphDBName, dbInfo.HistoryCollectionName)
+	if err != nil {
+		log.Println("Error getting morph prices mapping initially.")
+	}
 	// Recover immediately
 	// services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
 	// Routine one: Start polling after recovery
 
 	for {
-		services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
-		db.DisconnectDB()
-		time.Sleep(15 * time.Second)
+		err = services.RecoverProcess(ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)
+		if err != nil {
+			time.Sleep(15 * time.Second)
+			continue
+		} else {
+			time.Sleep(15 * time.Second)
+		}
 	}
 
 	//gocron.Every(15).Second().Do(services.RecoverProcess, ethClient, contractAbi, store, contractAddress, configService, dbInfo, txMap, morphCostMap)

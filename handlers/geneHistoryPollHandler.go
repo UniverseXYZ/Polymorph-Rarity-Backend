@@ -12,11 +12,11 @@ import (
 )
 
 // SavePolymorphHistory persists the polymorph history snapshot to the database.
-func SavePolymorphHistory(entity models.PolymorphHistory, polymorphDBName string, historyCollectionName string) {
+func SavePolymorphHistory(entity models.PolymorphHistory, polymorphDBName string, historyCollectionName string) error {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, historyCollectionName)
 
 	if err != nil {
-		log.Println(err)
+		return err
 	}
 
 	var bdoc interface{}
@@ -25,8 +25,9 @@ func SavePolymorphHistory(entity models.PolymorphHistory, polymorphDBName string
 
 	_, err = collection.InsertOne(context.Background(), bdoc)
 	if err != nil {
-		log.Println(err)
+		log.Println("Error inserting a document in History collection. ", err)
 	}
 
 	log.Println("Inserted history snapshot for polymorph #" + strconv.Itoa(entity.TokenId))
+	return nil
 }

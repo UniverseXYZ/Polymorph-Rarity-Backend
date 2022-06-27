@@ -40,6 +40,7 @@ func PersistSinglePolymorph(entity models.PolymorphEntity, polymorphDBName strin
 	}
 	res, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
+		log.Println("Error updating polymorph entity in rarity v2 collection.")
 		return "", err
 	}
 
@@ -74,21 +75,22 @@ func PersistMultiplePolymorphs(operations []mongo.WriteModel, polymorphDBName st
 // PersistMintEvents persists all the processed mints in the database in one go.
 //
 // Bulk writing to database saves a lot of time
-func PersistMintEvents(logs *[]types.Log, bsonDocs []interface{}, polymorphDBName string, rarityCollectionName string) {
+func PersistMintEvents(logs *[]types.Log, bsonDocs []interface{}, polymorphDBName string, rarityCollectionName string) error {
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	res, err := collection.InsertMany(context.Background(), bsonDocs)
 	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println(fmt.Sprintf("Inserted %v polymorphs in DB", len(res.InsertedIDs)))
+		log.Printf("Error inserting many documents in MongoDB %v", err)
+		return err
 	}
+	log.Println(fmt.Sprintf("Inserted %v polymorphs in DB", len(res.InsertedIDs)))
+	return nil
 }
 
 // DeleteV1Rarity Deletes all polymorph records from all V1 collections (after burnToMint, all info about v1 should disappear)
-func DeleteV1Rarity(polymorphDBName string, newlyMinted *[]types.Log) {
+func DeleteV1Rarity(polymorphDBName string, newlyMinted *[]types.Log) error {
 
 	raritiesV1 := os.Getenv("RARITIES_V1")
 	historyV1 := os.Getenv("HISTORY_V1")
@@ -96,17 +98,17 @@ func DeleteV1Rarity(polymorphDBName string, newlyMinted *[]types.Log) {
 
 	collectionRaritiesV1, err := db.GetMongoDbCollection(polymorphDBName, raritiesV1)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	historyV1Collection, err := db.GetMongoDbCollection(polymorphDBName, historyV1)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	morphCostV1Collection, err := db.GetMongoDbCollection(polymorphDBName, morphCostV1)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Delete ids of newly minted from V1 Collections
@@ -117,7 +119,7 @@ func DeleteV1Rarity(polymorphDBName string, newlyMinted *[]types.Log) {
 		// Delete from rarities-v1 collection
 		_, err = collectionRaritiesV1.DeleteOne(context.Background(), filter)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error deleting document from RaritiesV1 collection. %v ", err)
 		} else {
 			log.Println(fmt.Sprintf("Deleted polymorph #[%v] record from rarities-v1 collection", currentPolymorphIdToDelete))
 		}
@@ -125,7 +127,7 @@ func DeleteV1Rarity(polymorphDBName string, newlyMinted *[]types.Log) {
 		// delete from history-v1 collection
 		_, err = historyV1Collection.DeleteOne(context.Background(), filter)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error deleting document from HistoryV1 collection. %v ", err)
 		} else {
 			log.Println(fmt.Sprintf("Deleted polymorph #[%v] record from history-v1 collection", currentPolymorphIdToDelete))
 		}
@@ -133,9 +135,10 @@ func DeleteV1Rarity(polymorphDBName string, newlyMinted *[]types.Log) {
 		// delete from morph-cost collection
 		_, err = morphCostV1Collection.DeleteOne(context.Background(), filter)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error deleting document from MorphCostV1 collection. %v ", err)
 		} else {
 			log.Println(fmt.Sprintf("Deleted polymorph #[%v] record from morph-cost-v1", currentPolymorphIdToDelete))
 		}
 	}
+	return err
 }

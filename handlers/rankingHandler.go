@@ -17,11 +17,11 @@ import (
 // UpdateAllRanking fetches all polymorph from the database and calculates the ranks.
 //
 // After the ranking is done, the changes to ranks are persisted in the database.
-func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
+func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) error {
 	ranking := structs.RankMutex{}
 	collection, err := db.GetMongoDbCollection(polymorphDBName, rarityCollectionName)
 	if err != nil {
-		log.Println(err)
+		return err
 	}
 
 	var entities []models.PolymorphEntity
@@ -31,7 +31,7 @@ func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
 	findOptions.SetSort(bson.D{{constants.MorphFieldNames.RarityScore, -1}, {constants.MorphFieldNames.TokenId, 1}})
 	results, err := collection.Find(context.Background(), bson.D{}, &findOptions)
 	if err != nil {
-		log.Println(err)
+		log.Println("Error finding document from rarity collection. ", err)
 	}
 
 	results.All(context.Background(), &entities)
@@ -45,9 +45,11 @@ func UpdateAllRanking(polymorphDBName string, rarityCollectionName string) {
 	if len(ranking.Operations) > 0 {
 		err = PersistMultiplePolymorphs(ranking.Operations, polymorphDBName, rarityCollectionName)
 		if err != nil {
-			log.Println(err)
+			log.Println("Error persisting multiple polymorphs when updating ranking. ", err)
+			return err
 		}
 	}
+	return nil
 }
 
 // setRank computes if there should be a change in the current polymorph's rank.

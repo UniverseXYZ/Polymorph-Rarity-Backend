@@ -22,12 +22,15 @@ var instance *mongo.Client
 // If no connection exists, it will connect to database.
 //
 // If connection exists, it will return the instance of the database
-func GetDbConnection() *mongo.Client {
+func GetDbConnection() (*mongo.Client, error) {
 	if instance != nil {
-		log.Println("Fetching existing client")
+		log.Println("Fetching existing MongoDB client")
 		err := instance.Ping(context.Background(), nil)
-		if err == nil {
-			return instance
+		if err != nil {
+			return nil, err
+		} else {
+			log.Println("Successfully fetched existing MongoDB client.")
+			return instance, nil
 		}
 	}
 
@@ -49,17 +52,17 @@ func GetDbConnection() *mongo.Client {
 	var err error
 	instance, err = mongo.Connect(context.Background(), options.Client().ApplyURI(connectionStr))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	// check the connection
 	err = instance.Ping(context.Background(), nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	} else {
 		log.Println("Connected to mongo client")
 	}
-	return instance
+	return instance, nil
 }
 
 const (
@@ -134,7 +137,10 @@ func checkConnectionAndRestore(client *mongo.Client) {
 
 // GetMongoDbCollection accepts dbName and collectionname and returns an instance of the specified collection.
 func GetMongoDbCollection(DbName string, CollectionName string) (*mongo.Collection, error) {
-	client := GetDbConnection()
+	client, err := GetDbConnection()
+	if err != nil {
+		return nil, err
+	}
 
 	collection := client.Database(DbName).Collection(CollectionName)
 	return collection, nil
