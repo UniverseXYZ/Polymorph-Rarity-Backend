@@ -80,10 +80,14 @@ func PersistMintEvents(logs *[]types.Log, bsonDocs []interface{}, polymorphDBNam
 	if err != nil {
 		return err
 	}
-	res, err := collection.InsertMany(context.Background(), bsonDocs)
+	opts := &options.InsertManyOptions{
+		Ordered: &options.DefaultOrdered,
+	}
+	opts.SetOrdered(false)
+	res, err := collection.InsertMany(context.Background(), bsonDocs, opts)
 	if err != nil {
 		log.Printf("Error inserting many documents in MongoDB %v", err)
-		return err
+		//return err
 	}
 	log.Println(fmt.Sprintf("Inserted %v polymorphs in DB", len(res.InsertedIDs)))
 	return nil
